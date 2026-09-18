@@ -92,12 +92,12 @@ void frame(const String&title){
   tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
   center(title,16,2,GOLD); tft.drawFastHLine(25,40,W-50,GOLD);
   if(screen!=HOME){
-    constexpr int homeX=14, homeY=15, homeW=36, homeH=17;
+    constexpr int homeX=14, homeY=16, homeW=32, homeH=15;
     tft.fillRoundRect(homeX,homeY,homeW,homeH,4,NAVY);
     tft.drawRoundRect(homeX,homeY,homeW,homeH,4,GOLD);
     tft.setTextWrap(false,false); tft.setTextColor(CREAM,NAVY); tft.setTextSize(1);
-    tft.setCursor(homeX+(homeW-tft.textWidth("HOME"))/2,homeY+(homeH-8)/2);
-    tft.print("HOME");
+    tft.setCursor(homeX+(homeW-tft.textWidth("BACK"))/2,homeY+(homeH-8)/2);
+    tft.print("BACK");
   }
 }
 void button(int x,int y,int w,int h,const String&label,uint16_t fill=BURG){ tft.fillRoundRect(x,y,w,h,6,fill); tft.drawRoundRect(x,y,w,h,6,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); int tx=x+(w-tft.textWidth(label))/2; tft.setCursor(tx,y+(h-8)/2); tft.print(label); }
@@ -127,7 +127,7 @@ void drawJourney(){
   button(65,145,190,30,"OFFLINE",BURG);
   button(65,185,190,30,"ONLINE",NAVY);
 }
-void drawHome(){ frame("THE ASTRAL CABINET"); button(14,15,40,17,"BACK",NAVY); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED); }
+void drawHome(){ frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED); }
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
 void drawZodiacTile(uint8_t id,int x,int y){
   tft.fillRoundRect(x-2,y-2,64,64,6,id==signIndex?BURG:NAVY);

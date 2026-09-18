@@ -113,8 +113,8 @@ The **BACK** button on the four-option menu returns to the journey choice screen
 Tap the large buttons. A reversed draw is rendered upside down. On the tarot
 reading screen, tap each face-down card to reveal it, then tap a revealed card
 to read its meaning. In the Zodiac screen, tapping a medallion selects it and
-opens the reading menu. The visible **HOME** button at top left returns to the
-main menu from every non-home screen.
+opens the reading menu. The visible **BACK** button at top left returns to the
+main menu from every reading screen.
 
 ## License
 
