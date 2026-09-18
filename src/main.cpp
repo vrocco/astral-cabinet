@@ -6,6 +6,7 @@
 #include <time.h>
 
 TFT_eSPI tft(240, 320);
+SPIClass touchSPI = SPIClass(VSPI);
 XPT2046_Touchscreen touch(33, 36);
 Preferences prefs;
 
@@ -87,8 +88,8 @@ void setup(){
   tft.invertDisplay(true);
   Serial.printf("ASTRAL: dimensions %d x %d\\n", tft.width(), tft.height());
   Serial.println("ASTRAL: rotation complete");
-  SPI.begin(14, 12, 13, 33);
-  touch.begin(SPI);
+  touchSPI.begin(25, 39, 32, 33);
+  touch.begin(touchSPI);
   touch.setRotation(3);
   Serial.println("ASTRAL: touch init complete");
   prefs.begin("cabinet",false);
