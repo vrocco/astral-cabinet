@@ -14,6 +14,34 @@ A portable, offline tarot and zodiac fortune-teller for the ESP32-2432S028 CYD (
 - Touch-driven card reveal with simple ritual animations
 - No Wi-Fi required
 
+## Illustrated deck
+
+The CYD can render real 16-bit color JPEG artwork; the earlier line-glyph
+"art" is retained only as a safe fallback when no card is inserted. This
+revision introduces a proper Art Nouveau deck pipeline rather than pretending
+that a few primitive drawing commands are illustrations.
+
+Use a FAT32-formatted microSD card. Copy the repository's
+`assets/sd/astral/` directory to the root of the card, so the card contains:
+
+```text
+/astral/card_back.jpg
+/astral/card_back_s.jpg
+/astral/00.jpg
+/astral/00_s.jpg
+...
+```
+
+Full images are 120×160 JPEGs and spread thumbnails are 78×104 JPEGs. This
+keeps each asset small and decoded quickly while leaving a clear upgrade path
+to an illustrated image for every Major Arcana card. The first art tranche is
+included for The Fool, Magician, High Priestess, Empress, Emperor, Star, Moon,
+and the card back. Cards without an SD image continue to use the fallback
+motif until their illustration is added.
+
+The firmware detects the card at boot. Its serial output states either
+`ASTRAL: SD art ready` or `ASTRAL: SD art unavailable; using vector fallback`.
+
 The readings are reflective entertainment, not predictions or medical/financial advice.
 
 ## Hardware
@@ -23,6 +51,7 @@ Target: common ESP32-2432S028 CYD board:
 - ILI9341 320x240 TFT: MOSI 13, MISO 12, SCLK 14, CS 15, DC 2, RST 4
 - XPT2046 touch controller: CS 33, IRQ 36
 - Backlight: GPIO 21
+- microSD artwork bus: SCK 18, MISO 19, MOSI 23, CS 5 (separate HSPI bus)
 
 Some CYD revisions vary. If touch is offset, adjust `TOUCH_X_MIN/MAX` and `TOUCH_Y_MIN/MAX` in `src/main.cpp`.
 
@@ -37,6 +66,14 @@ pio device monitor
 ```
 
 No network credentials are needed. The **Cabinet** screen stores a selectable guest profile in ESP32 Preferences; the profile editor and arbitrary typed names are planned for a later iteration.
+
+To regenerate CYD-ready JPEGs after replacing the high-resolution source art, put
+files named `00.png` through `21.png` and `card_back.png` in a directory, then
+run:
+
+```sh
+python3 tools/prepare_art.py /path/to/source-art
+```
 
 ## Controls
 
