@@ -52,7 +52,7 @@ const Card cards[] = {
 };
 
 enum Screen { HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET };
-Screen screen=HOME; int signIndex=0, spreadMode=0, reveal=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
+Screen screen=HOME; int signIndex=0, spreadMode=0, reveal=0, detailCard=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width);
 
 // The CYD's microSD socket is on its own HSPI bus: SCK=18, MISO=19,
@@ -69,8 +69,14 @@ String artPath(uint8_t id, bool thumbnail=false){
   return String(path);
 }
 bool drawSdArt(const String& path, int x, int y){
-  if(!sdArtReady || !SD.exists(path)) return false;
-  return TJpgDec.drawSdJpg(x, y, path.c_str());
+  if(!sdArtReady) return false;
+  if(!SD.exists(path)){
+    Serial.printf("ASTRAL: art missing %s\n", path.c_str());
+    return false;
+  }
+  JRESULT result=TJpgDec.drawSdJpg(x, y, path.c_str());
+  if(result != JDR_OK) Serial.printf("ASTRAL: art decode failed %s result=%d\n", path.c_str(), result);
+  return result == JDR_OK;
 }
 bool drawSdCard(uint8_t id, int x, int y, bool thumbnail=false){ return drawSdArt(artPath(id, thumbnail), x, y); }
 bool drawSdCardBack(int x, int y, bool thumbnail=false){ return drawSdArt(thumbnail ? "/astral/card_back_s.jpg" : "/astral/card_back.jpg", x, y); }
@@ -143,14 +149,26 @@ void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color){
 }
 void drawDaily(){ frame("DAILY OMEN"); const Card&c=cards[drawn[0]]; center(String(signs[signIndex].name)+"  ·  "+moonPhase(),51,1,GOLD); if(reveal==0){ drawCardBack(120,70,78,104); center("TOUCH THE DECK TO DRAW",184,1,CREAM); center(sdArtReady?"the cabinet remembers its pictures":"insert art SD card for illustrated deck",201,1,MUTED); } else { drawCardArt(drawn[0],12,54,120,160); text(c.name,146,72,2,CREAM); text(reversed[0]?"REVERSED":"UPRIGHT",146,96,1,reversed[0]?BURG:GOLD); textWrap(reversed[0]?c.rev:c.up,146,116,1,CREAM,154); text("touch below for another omen",146,202,1,MUTED); } footer(); }
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width){ tft.setTextSize(size); String word,line; int yy=y; for(unsigned i=0;i<s.length();i++){ char ch=s[i]; if(ch==' '){ if(tft.textWidth(line+word)>width){ text(line,x,yy,size,color); yy+=12; line="";} line+=word+" "; word="";} else word+=ch; } line+=word; if(line.length()) text(line,x,yy,size,color); }
-void drawSpread(){ frame("THREE CARD READING"); center(String(signs[signIndex].name)+"  ·  "+(reveal<3?"reveal the cards":"your constellation of meaning"),51,1,GOLD); const char* pos[]={"PAST","PRESENT","BECOMING"}; for(int i=0;i<3;i++){ int x=20+i*100; if(i>=reveal){ drawCardBack(x,76,78,104); } else { drawCardArt(drawn[i],x,76,78,104,true); } text(pos[i],x+15,188,1,GOLD); } if(reveal==3){ text(cards[drawn[0]].name,24,204,1,CREAM); text("  ·  "+String(cards[drawn[1]].name)+"  ·  "+cards[drawn[2]].name,85,204,1,MUTED); } footer(); }
+void drawSpread(){ frame("THREE CARD READING"); center(String(signs[signIndex].name)+"  ·  "+(reveal<3?"reveal the cards":"your constellation of meaning"),51,1,GOLD); const char* pos[]={"PAST","PRESENT","BECOMING"}; for(int i=0;i<3;i++){ int x=20+i*100; if(i>=reveal){ drawCardBack(x,76,78,104); } else { drawCardArt(drawn[i],x,76,78,104,true); } text(pos[i],x+15,188,1,GOLD); } if(reveal==3) center("Tap a card to read its meaning",204,1,MUTED); footer(); }
+void drawCardDetail(){
+  const Card&c=cards[drawn[detailCard]];
+  const char* pos[]={"PAST", "PRESENT", "BECOMING"};
+  frame(String(pos[detailCard])+" CARD");
+  drawCardArt(drawn[detailCard],12,54,120,160);
+  text(c.name,146,72,2,CREAM);
+  text(reversed[detailCard]?"REVERSED":"UPRIGHT",146,96,1,reversed[detailCard]?BURG:GOLD);
+  textWrap(reversed[detailCard]?c.rev:c.up,146,116,1,CREAM,154);
+  text("tap to return to spread",146,202,1,MUTED);
+  footer();
+}
 void drawCabinet(){ frame("THE CABINET"); center("A little archive of the self",50,1,MUTED); text("GUEST",28,76,1,GOLD); text(guestName,110,76,2,CREAM); button(28,98,82,25,"GUEST"); button(119,98,82,25,"MOON CHILD",NAVY); button(210,98,82,25,"STAR SEEKER",NAVY); text("SIGN",28,136,1,GOLD); text(signs[signIndex].name,110,136,2,CREAM); text("ELEMENT",28,164,1,GOLD); text(signs[signIndex].element,110,164,1,CREAM); text("MOON",28,184,1,GOLD); text(moonPhase(),110,184,1,CREAM); button(70,207,180,20,"RETURN TO RITUAL",BURG); footer(); }
 void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22); reversed[i]=random(100)<25; } screen=three?SPREAD:DAILY; }
 void tap(int x,int y){ if(screen==HOME){ if(y>88&&y<135){ if(x<160)newReading(false); else newReading(true); } else if(y>140&&y<187){ if(x<160)screen=ZODIAC; else screen=CABINET; } }
  else if(screen==ZODIAC){ if(y>=62&&y<195){ int col=(x-17)/75,row=(y-66)/42; if(col>=0&&col<4&&row>=0&&row<3) signIndex=row*4+col; } if(y>195) screen=MENU; }
  else if(screen==MENU){ if(y>70&&y<115)newReading(false); else if(y>115&&y<160)newReading(true); else if(y>160&&x<160)screen=ZODIAC; else if(y>160)screen=CABINET; }
  else if(screen==DAILY){ if(x<45&&y<45)screen=HOME; else { reveal=1; if(y>180)newReading(false); } }
- else if(screen==SPREAD){ if(x<45&&y<45)screen=HOME; else if(reveal<3)reveal++; else if(y>195)newReading(true); }
+ else if(screen==SPREAD){ if(x<45&&y<45)screen=HOME; else if(reveal<3)reveal++; else if(y>=70&&y<190&&x>=20&&x<298){ detailCard=constrain((x-20)/100,0,2); screen=CARD; } else if(y>195)newReading(true); }
+ else if(screen==CARD){ screen=SPREAD; }
  else if(screen==CABINET){ if(y>205)screen=HOME; else if(y>95&&y<130){ if(x<112)guestName="Astral Guest"; else if(x<207)guestName="Moon Child"; else guestName="Star Seeker"; prefs.putString("name",guestName); } else if(x<45&&y<45)screen=HOME; }
 }
 void setup(){
@@ -209,7 +227,7 @@ void loop(){
     else if(screen==MENU)drawMenu();
     else if(screen==DAILY)drawDaily();
     else if(screen==SPREAD)drawSpread();
-    else if(screen==CARD)drawDaily();
+    else if(screen==CARD)drawCardDetail();
     else if(screen==CABINET)drawCabinet();
     last=screen;
     lastReveal=reveal;
