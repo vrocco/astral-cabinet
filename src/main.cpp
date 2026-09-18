@@ -101,6 +101,7 @@ void frame(const String&title){
   }
 }
 void button(int x,int y,int w,int h,const String&label,uint16_t fill=BURG){ tft.fillRoundRect(x,y,w,h,6,fill); tft.drawRoundRect(x,y,w,h,6,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); int tx=x+(w-tft.textWidth(label))/2; tft.setCursor(tx,y+(h-8)/2); tft.print(label); }
+void doorPlaque(int x,int y,int w,const String&label,uint16_t fill=NAVY){ tft.fillRoundRect(x,y,w,15,3,fill); tft.drawRoundRect(x,y,w,15,3,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); tft.setCursor(x+(w-tft.textWidth(label))/2,y+4); tft.print(label); }
 void footer(){ text("THE ASTRAL CABINET",92,222,1,MUTED); }
 void drawBoot(){
   if(!drawSdArt("/astral/boot.jpg",0,0)){
@@ -127,7 +128,20 @@ void drawJourney(){
   button(65,145,190,30,"OFFLINE",BURG);
   button(65,185,190,30,"ONLINE",NAVY);
 }
-void drawHome(){ frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED); }
+void drawHome(){
+  if(!drawSdArt("/astral/doorways.jpg",0,0)){
+    frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED);
+    return;
+  }
+  button(14,16,32,15,"BACK",NAVY);
+  tft.setTextWrap(false,false); tft.setTextColor(CREAM); tft.setTextSize(1);
+  const String prompt="CHOOSE A DOORWAY";
+  tft.setCursor((W-tft.textWidth(prompt))/2,38); tft.print(prompt);
+  doorPlaque(30,105,100,"DAILY OMEN");
+  doorPlaque(190,105,100,"TAROT READING",BURG);
+  doorPlaque(35,188,90,"ZODIAC");
+  doorPlaque(195,188,90,"CABINET",BURG);
+}
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
 void drawZodiacTile(uint8_t id,int x,int y){
   tft.fillRoundRect(x-2,y-2,64,64,6,id==signIndex?BURG:NAVY);
@@ -248,8 +262,8 @@ void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22)
 void tap(int x,int y){
  if(screen==BOOT){ screen=JOURNEY; uiRevision++; return; }
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; uiRevision++; return; }
- if(screen!=HOME && x<65 && y<48){ screen=HOME; uiRevision++; return; }
- if(screen==HOME){ if(x>=14 && x<54 && y>=15 && y<32)screen=JOURNEY; else if(y>88&&y<135){ if(x<160)newReading(false); else newReading(true); } else if(y>140&&y<187){ if(x<160)screen=ZODIAC; else screen=CABINET; } }
+ if(screen!=HOME && x>=14 && x<46 && y>=16 && y<31){ screen=HOME; uiRevision++; return; }
+ if(screen==HOME){ if(x>=14 && x<46 && y>=16 && y<31)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=CABINET; }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
  else if(screen==MENU){ if(y>70&&y<115)newReading(false); else if(y>115&&y<160)newReading(true); else if(y>160&&x<160)screen=ZODIAC; else if(y>160)screen=CABINET; }
  else if(screen==DAILY){ if(x<45&&y<45)screen=HOME; else { reveal=1; if(y>180)newReading(false); } }

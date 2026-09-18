@@ -29,6 +29,7 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/card_back_s.jpg
 /astral/boot.jpg
 /astral/journey.jpg
+/astral/doorways.jpg
 /astral/00.jpg
 /astral/00_s.jpg
 /astral/00_r.jpg
@@ -41,8 +42,9 @@ For a one-step copy, `dist/astral-cabinet-sd-art.zip` contains that same
 top-level `astral/` directory, plus a SHA-256 file for integrity checking.
 
 `boot.jpg` is a full-screen 320×240 illustrated entry screen; `journey.jpg`
-is the full-screen Offline/Online choice screen. Full card images are 120×160
-JPEGs and spread thumbnails are 78×104 JPEGs. Every
+is the full-screen Offline/Online choice screen; and `doorways.jpg` is the
+four-portal Offline menu. Full card images are 120×160 JPEGs and spread
+thumbnails are 78×104 JPEGs. Every
 Major Arcana card also has pre-rotated 180° full and thumbnail assets for a
 genuine reversed draw. Twelve 60×60 illustrated zodiac medallions live under
 `/astral/zodiac/`. This keeps every asset small and decoded quickly while
@@ -103,14 +105,20 @@ For the journey-choice background, provide a separate output path:
 python3 tools/prepare_boot_art.py /path/to/journey-art.png --output assets/sd/astral/journey.jpg
 ```
 
+The same tool can prepare a replacement doorway menu background:
+
+```sh
+python3 tools/prepare_boot_art.py /path/to/doorway-art.png --output assets/sd/astral/doorways.jpg
+```
+
 ## Controls
 
 At startup, tap the illustrated Astral Cabinet entry screen, then choose a journey.
-**Offline** opens the current four-option reading menu. **Online** is intentionally
-present but inactive until its connected experience is implemented.
+**Offline** opens a four-portal reading menu. **Online** is intentionally present
+but inactive until its connected experience is implemented.
 The **BACK** button on the four-option menu returns to the journey choice screen.
 
-Tap the large buttons. A reversed draw is rendered upside down. On the tarot
+Tap a labeled doorway or control. A reversed draw is rendered upside down. On the tarot
 reading screen, tap each face-down card to reveal it, then tap a revealed card
 to read its meaning. In the Zodiac screen, tapping a medallion selects it and
 opens the reading menu. The visible **BACK** button at top left returns to the
