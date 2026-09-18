@@ -5,7 +5,7 @@
 #include <Preferences.h>
 #include <time.h>
 
-TFT_eSPI tft;
+TFT_eSPI tft(240, 320);
 XPT2046_Touchscreen touch(33, 36);
 Preferences prefs;
 
@@ -83,10 +83,11 @@ void setup(){
   Serial.println("ASTRAL: backlight on");
   tft.init();
   Serial.println("ASTRAL: tft init complete");
-  tft.setRotation(3);
+  tft.setRotation(1);
+  Serial.printf("ASTRAL: dimensions %d x %d\\n", tft.width(), tft.height());
   Serial.println("ASTRAL: rotation complete");
   touch.begin();
-  touch.setRotation(3);
+  touch.setRotation(1);
   Serial.println("ASTRAL: touch init complete");
   prefs.begin("cabinet",false);
   guestName=prefs.getString("name",DEFAULT_NAME);
