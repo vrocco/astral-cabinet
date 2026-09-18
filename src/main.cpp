@@ -54,7 +54,7 @@ const Card cards[] = {
 enum Screen { HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET };
 Screen screen=HOME; int signIndex=0, spreadMode=0, reveal=0, detailCard=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 uint32_t uiRevision=0;
-void textWrap(const String&s,int x,int y,int size,uint16_t color,int width);
+void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
 
 // The CYD's microSD socket is on its own HSPI bus: SCK=18, MISO=19,
 // MOSI=23, CS=5. Keeping it separate from the TFT and touch buses prevents
@@ -85,8 +85,9 @@ bool drawSdCardBack(int x, int y, bool thumbnail=false){ return drawSdArt(thumbn
 String zodiacArtPath(uint8_t id){ char path[32]; snprintf(path, sizeof(path), "/astral/zodiac/%02u.jpg", id); return String(path); }
 bool drawZodiacArt(uint8_t id, int x, int y){ return drawSdArt(zodiacArtPath(id), x, y); }
 
-void text(const String&s,int x,int y,int size=1,uint16_t c=CREAM){ tft.setTextColor(c,INK); tft.setTextSize(size); tft.setCursor(x,y); tft.print(s); }
+void text(const String&s,int x,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c,INK); tft.setTextSize(size); tft.setCursor(x,y); tft.print(s); }
 void center(const String&s,int y,int size=1,uint16_t c=CREAM){ tft.setTextSize(size); int x=(W-tft.textWidth(s))/2; text(s,x,y,size,c); }
+void panelTitle(const String&s,int x,int y,int width){ tft.setTextSize(2); text(s,x,y,tft.textWidth(s)<=width?2:1,CREAM); }
 void frame(const String&title){
   tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
   center(title,16,2,GOLD); tft.drawFastHLine(25,40,W-50,GOLD);
@@ -169,17 +170,51 @@ void drawCardBack(int x,int y,int w,int h){
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color){
   tft.drawCircle(cx,cy,r+2,color); cardMotif(id%12,cx,cy,r,color);
 }
-void drawDaily(){ frame("DAILY OMEN"); const Card&c=cards[drawn[0]]; center(String(signs[signIndex].name)+"  ·  "+moonPhase(),51,1,GOLD); if(reveal==0){ drawCardBack(120,70,78,104); center("TOUCH THE DECK TO DRAW",184,1,CREAM); center(sdArtReady?"the cabinet remembers its pictures":"insert art SD card for illustrated deck",201,1,MUTED); } else { drawCardArt(drawn[0],12,54,120,160,false,reversed[0]); text(c.name,146,72,2,CREAM); text(reversed[0]?"REVERSED":"UPRIGHT",146,96,1,reversed[0]?BURG:GOLD); textWrap(reversed[0]?c.rev:c.up,146,116,1,CREAM,154); text("touch below for another omen",146,202,1,MUTED); } footer(); }
-void textWrap(const String&s,int x,int y,int size,uint16_t color,int width){ tft.setTextSize(size); String word,line; int yy=y; for(unsigned i=0;i<s.length();i++){ char ch=s[i]; if(ch==' '){ if(tft.textWidth(line+word)>width){ text(line,x,yy,size,color); yy+=12; line="";} line+=word+" "; word="";} else word+=ch; } line+=word; if(line.length()) text(line,x,yy,size,color); }
+void drawDaily(){
+  frame("DAILY OMEN"); const Card&c=cards[drawn[0]];
+  if(reveal==0){
+    center(String(signs[signIndex].name)+"  ·  "+moonPhase(),51,1,GOLD);
+    drawCardBack(120,70,78,104);
+    center("TOUCH THE DECK TO DRAW",184,1,CREAM);
+    center(sdArtReady?"the cabinet remembers its pictures":"insert art SD card for illustrated deck",201,1,MUTED);
+  } else {
+    drawCardArt(drawn[0],12,54,120,160,false,reversed[0]);
+    panelTitle(c.name,146,72,158);
+    text(reversed[0]?"REVERSED":"UPRIGHT",146,96,1,reversed[0]?BURG:GOLD);
+    textWrap(reversed[0]?c.rev:c.up,146,116,1,CREAM,158,7);
+    text("touch below for another omen",146,202,1,MUTED);
+  }
+  footer();
+}
+void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines){
+  tft.setTextWrap(false,false); tft.setTextSize(size);
+  String word,line; int yy=y, lineCount=0;
+  auto emit=[&](const String&value){
+    if(!value.length() || (maxLines && lineCount>=maxLines)) return false;
+    text(value,x,yy,size,color); yy+=11*size; lineCount++;
+    return !maxLines || lineCount<maxLines;
+  };
+  for(unsigned i=0;i<=s.length();i++){
+    char ch=i<s.length()?s[i]:' ';
+    if(ch==' '){
+      if(!word.length()) continue;
+      String candidate=line.length()?line+" "+word:word;
+      if(line.length() && tft.textWidth(candidate)>width){ if(!emit(line)) return; line=word; }
+      else line=candidate;
+      word="";
+    } else word+=ch;
+  }
+  emit(line);
+}
 void drawSpread(){ frame("THREE CARD READING"); center(String(signs[signIndex].name)+"  ·  "+(reveal<3?"reveal the cards":"your constellation of meaning"),51,1,GOLD); const char* pos[]={"PAST","PRESENT","BECOMING"}; for(int i=0;i<3;i++){ int x=20+i*100; if(i>=reveal){ drawCardBack(x,76,78,104); } else { drawCardArt(drawn[i],x,76,78,104,true,reversed[i]); } text(pos[i],x+15,188,1,GOLD); } if(reveal==3) center("Tap a card to read its meaning",204,1,MUTED); footer(); }
 void drawCardDetail(){
   const Card&c=cards[drawn[detailCard]];
   const char* pos[]={"PAST", "PRESENT", "BECOMING"};
   frame(String(pos[detailCard])+" CARD");
   drawCardArt(drawn[detailCard],12,54,120,160,false,reversed[detailCard]);
-  text(c.name,146,72,2,CREAM);
+  panelTitle(c.name,146,72,158);
   text(reversed[detailCard]?"REVERSED":"UPRIGHT",146,96,1,reversed[detailCard]?BURG:GOLD);
-  textWrap(reversed[detailCard]?c.rev:c.up,146,116,1,CREAM,154);
+  textWrap(reversed[detailCard]?c.rev:c.up,146,116,1,CREAM,158,7);
   text("tap to return to spread",146,202,1,MUTED);
   footer();
 }
