@@ -90,10 +90,16 @@ void center(const String&s,int y,int size=1,uint16_t c=CREAM){ tft.setTextSize(s
 void frame(const String&title){
   tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
   center(title,16,2,GOLD); tft.drawFastHLine(25,40,W-50,GOLD);
-  if(screen!=HOME){ tft.fillRoundRect(14,14,42,20,4,NAVY); tft.drawRoundRect(14,14,42,20,4,GOLD); text("HOME",18,20,1,CREAM); }
+  if(screen!=HOME){
+    constexpr int homeX=14, homeY=15, homeW=36, homeH=17;
+    tft.fillRoundRect(homeX,homeY,homeW,homeH,4,NAVY);
+    tft.drawRoundRect(homeX,homeY,homeW,homeH,4,GOLD);
+    tft.setTextSize(1);
+    text("HOME",homeX+(homeW-tft.textWidth("HOME"))/2,homeY+(homeH-8)/2,1,CREAM);
+  }
 }
 void button(int x,int y,int w,int h,const String&label,uint16_t fill=BURG){ tft.fillRoundRect(x,y,w,h,6,fill); tft.drawRoundRect(x,y,w,h,6,GOLD); tft.setTextSize(1); int tx=x+(w-tft.textWidth(label))/2; text(label,tx,y+(h-8)/2,1,CREAM); }
-void footer(){ text("<",14,18,2,GOLD); text("THE ASTRAL CABINET",92,222,1,MUTED); }
+void footer(){ text("THE ASTRAL CABINET",92,222,1,MUTED); }
 void splash(){ tft.fillScreen(INK); center("THE",62,2,GOLD); center("ASTRAL",88,4,CREAM); center("CABINET",126,3,GOLD); center("a small instrument for reflection",174,1,MUTED); delay(1600); }
 void drawHome(){ frame("THE ASTRAL CABINET"); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED); }
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
