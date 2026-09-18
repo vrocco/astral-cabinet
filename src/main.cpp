@@ -58,12 +58,56 @@ void button(int x,int y,int w,int h,const String&label,uint16_t fill=BURG){ tft.
 void footer(){ text("<",14,18,2,GOLD); text("THE ASTRAL CABINET",92,222,1,MUTED); }
 void splash(){ tft.fillScreen(INK); center("THE",62,2,GOLD); center("ASTRAL",88,4,CREAM); center("CABINET",126,3,GOLD); center("a small instrument for reflection",174,1,MUTED); delay(1600); }
 void drawHome(){ frame("THE ASTRAL CABINET"); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"THREE CARDS"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED); }
-void drawZodiac(){ frame("CHOOSE YOUR SIGN"); center("Your constellation",51,1,MUTED); for(int i=0;i<12;i++){ int col=i%4,row=i/4; int x=17+col*75,y=66+row*42; button(x,y,68,32,signs[i].name, i==signIndex?BURG:NAVY); } text("ELEMENT",30,200,1,GOLD); text(signs[signIndex].element,95,200,1,CREAM); text(signs[signIndex].theme,175,200,1,MUTED); footer(); }
+void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
+ void drawZodiac(){ frame("CHOOSE YOUR SIGN"); center("Your constellation",51,1,MUTED); for(int i=0;i<12;i++){ int col=i%4,row=i/4; int x=17+col*75,y=66+row*42; button(x,y,68,32,signs[i].name, i==signIndex?BURG:NAVY); zodiacMark(i,x+9,y+16,4,i==signIndex?CREAM:GOLD); } zodiacMark(signIndex,160,51,7,GOLD); text("ELEMENT",30,200,1,GOLD); text(signs[signIndex].element,95,200,1,CREAM); text(signs[signIndex].theme,175,200,1,MUTED); footer(); }
 void drawMenu(){ frame("SELECT A READING"); center(String(signs[signIndex].name)+"  /  "+signs[signIndex].element,53,1,GOLD); button(30,75,260,34,"ONE-CARD DAILY OMEN"); button(30,120,260,34,"PAST / PRESENT / BECOMING"); button(30,165,125,30,"CHANGE SIGN",NAVY); button(165,165,125,30,"CABINET",NAVY); footer(); }
 String moonPhase(){ time_t now=time(nullptr); if(now<100000) return "the moon keeps its own time"; long days=(now/86400L)-10957; int phase=(days%30+30)%30; if(phase<2) return "new moon"; if(phase<7) return "waxing crescent"; if(phase<9) return "first quarter"; if(phase<14) return "waxing gibbous"; if(phase<16) return "full moon"; if(phase<22) return "waning gibbous"; if(phase<24) return "last quarter"; return "waning crescent"; }
-void drawDaily(){ frame("DAILY OMEN"); const Card&c=cards[drawn[0]]; center(String(signs[signIndex].name)+"  ·  "+moonPhase(),51,1,GOLD); if(reveal==0){ button(70,72,180,92,"TOUCH TO DRAW"); center("Let the question arrive",182,1,MUTED); } else { center(c.name,70,2,CREAM); center(reversed[0]?"REVERSED":"UPRIGHT",94,1,reversed[0]?BURG:GOLD); textWrap(reversed[0]?c.rev:c.up,28,120,1,CREAM,265); center("Touch for another omen",202,1,MUTED); } footer(); }
+
+void star(int cx,int cy,int r,uint16_t color){
+  tft.drawLine(cx,cy-r,cx+r/3,cy+r/3,color); tft.drawLine(cx+r/3,cy+r/3,cx-r,cy-r/4,color);
+  tft.drawLine(cx-r,cy-r/4,cx+r,cy-r/4,color); tft.drawLine(cx+r,cy-r/4,cx-r/3,cy+r/3,color);
+  tft.drawLine(cx-r/3,cy+r/3,cx,cy-r,color);
+}
+void sunGlyph(int cx,int cy,int r,uint16_t color){ tft.drawCircle(cx,cy,r,color); tft.fillCircle(cx,cy,2,color); for(int i=0;i<8;i++){ float a=i*0.785398f; int x1=cx+cos(a)*(r+3),y1=cy+sin(a)*(r+3); int x2=cx+cos(a)*(r+7),y2=cy+sin(a)*(r+7); tft.drawLine(x1,y1,x2,y2,color); } }
+void moonGlyph(int cx,int cy,int r,uint16_t color){ tft.fillCircle(cx,cy,r,color); tft.fillCircle(cx+r/2,cy-r/3,r,color==GOLD?NAVY:INK); }
+void cardMotif(uint8_t id,int cx,int cy,int s,uint16_t color){
+  switch(id){
+    case 0: tft.drawLine(cx-s,cy+s,cx,cy-s,color); tft.drawLine(cx,cy-s,cx+s,cy+s,color); sunGlyph(cx,cy-s/2,s/4,color); break;
+    case 1: tft.drawLine(cx,cy-s,cx,cy+s,color); tft.drawCircle(cx,cy-s,s/7,color); star(cx-s/2,cy,s/5,color); star(cx+s/2,cy,s/5,color); break;
+    case 2: moonGlyph(cx,cy-s/3,s/4,color); tft.drawRect(cx-s/2,cy-s/2,s/5,s,color); tft.drawRect(cx+s/3,cy-s/2,s/5,s,color); break;
+    case 3: tft.drawLine(cx,cy+s,cx,cy-s/3,color); tft.drawCircle(cx,cy-s/2,s/3,color); for(int i=0;i<6;i++) tft.drawCircle(cx+cos(i*1.047f)*s/3,cy-s/2+sin(i*1.047f)*s/3,s/7,color); break;
+    case 4: tft.drawLine(cx-s,cy+s/2,cx+s,cy+s/2,color); tft.drawLine(cx-s/2,cy+s/2,cx-s/3,cy-s/2,color); tft.drawLine(cx-s/3,cy-s/2,cx,cy-s/4,color); tft.drawLine(cx,cy-s/4,cx+s/3,cy-s/2,color); tft.drawLine(cx+s/3,cy-s/2,cx+s/2,cy+s/2,color); break;
+    case 5: tft.drawRect(cx-s/2,cy-s/3,s,s*2/3,color); tft.drawTriangle(cx-s*2/3,cy-s/3,cx,cy-s,cx+s*2/3,cy-s/3,color); tft.drawLine(cx,cy-s,cx,cy+s,color); break;
+    case 6: tft.drawCircle(cx-s/4,cy,s/4,color); tft.drawCircle(cx+s/4,cy,s/4,color); tft.drawLine(cx-s/2,cy,cx,cy+s/2,color); tft.drawLine(cx+s/2,cy,cx,cy+s/2,color); star(cx,cy-s/2,s/5,color); break;
+    case 7: tft.drawCircle(cx-s/2,cy+s/3,s/4,color); tft.drawCircle(cx+s/2,cy+s/3,s/4,color); tft.drawRect(cx-s/2,cy-s/3,s,s/2,color); tft.drawLine(cx,cy-s/3,cx,cy-s,color); break;
+    case 8: tft.drawCircle(cx,cy,s/2,color); tft.drawLine(cx-s/3,cy-s/4,cx-s/2,cy-s/2,color); tft.drawLine(cx+s/3,cy-s/4,cx+s/2,cy-s/2,color); tft.drawCircle(cx-s/5,cy-s/8,2,color); tft.drawCircle(cx+s/5,cy-s/8,2,color); break;
+    case 9: tft.drawCircle(cx,cy-s/4,s/3,color); tft.drawLine(cx-s/3,cy+s/2,cx,cy-s/4,color); tft.drawLine(cx,cy-s/4,cx+s/3,cy+s/2,color); sunGlyph(cx,cy-s/2,s/5,color); break;
+    case 10: tft.drawCircle(cx,cy,s/2,color); for(int i=0;i<8;i++){ float a=i*0.785398f; tft.drawLine(cx,cy,cx+cos(a)*s/2,cy+sin(a)*s/2,color); } break;
+    case 11: tft.drawLine(cx,cy-s/2,cx,cy+s/2,color); tft.drawLine(cx-s/2,cy-s/3,cx+s/2,cy-s/3,color); tft.drawLine(cx-s/2,cy-s/3,cx-s/3,cy+s/4,color); tft.drawLine(cx+s/2,cy-s/3,cx+s/3,cy+s/4,color); tft.drawCircle(cx-s/3,cy+s/3,s/5,color); tft.drawCircle(cx+s/3,cy+s/3,s/5,color); break;
+    case 12: tft.drawLine(cx,cy-s,cx,cy+s,color); tft.drawCircle(cx,cy-s/2,s/5,color); tft.drawLine(cx-s/2,cy+s/3,cx+s/2,cy+s/3,color); break;
+    case 13: tft.drawCircle(cx,cy,s/2,color); tft.drawCircle(cx-s/5,cy-s/8,2,color); tft.drawCircle(cx+s/5,cy-s/8,2,color); tft.drawLine(cx-s/4,cy+s/5,cx+s/4,cy+s/5,color); break;
+    case 14: tft.drawCircle(cx-s/3,cy,s/4,color); tft.drawCircle(cx+s/3,cy,s/4,color); tft.drawLine(cx-s/3,cy+s/4,cx,cy+s/2,color); tft.drawLine(cx+s/3,cy+s/4,cx,cy+s/2,color); break;
+    case 15: tft.drawCircle(cx-s/4,cy,s/3,color); tft.drawCircle(cx+s/4,cy,s/3,color); tft.drawLine(cx-s/2,cy-s/3,cx-s/3,cy-s,color); tft.drawLine(cx+s/2,cy-s/3,cx+s/3,cy-s,color); break;
+    case 16: tft.drawRect(cx-s/3,cy-s/2,2*s/3,s,color); tft.drawLine(cx-s/2,cy-s,cx+s/2,cy+s,color); tft.drawLine(cx+s/2,cy-s,cx-s/2,cy+s,color); break;
+    case 17: star(cx,cy,s/2,color); star(cx-s/2,cy+s/3,s/5,color); star(cx+s/2,cy+s/3,s/5,color); break;
+    case 18: moonGlyph(cx,cy,s/2,color); star(cx+s/2,cy-s/3,s/6,color); star(cx-s/2,cy+s/3,s/6,color); break;
+    case 19: sunGlyph(cx,cy,s/2,color); tft.drawPixel(cx-s/5,cy-s/8,color); tft.drawPixel(cx+s/5,cy-s/8,color); break;
+    case 20: tft.drawCircle(cx,cy,s/3,color); tft.drawLine(cx+s/3,cy,cx+s,cy-s/2,color); tft.drawLine(cx+s/3,cy,cx+s,cy+s/2,color); star(cx-s/2,cy,s/5,color); break;
+    case 21: tft.drawCircle(cx,cy,s/2,color); tft.drawCircle(cx,cy,s/3,color); tft.drawLine(cx-s/2,cy,cx+s/2,cy,color); tft.drawLine(cx,cy-s/2,cx,cy+s/2,color); star(cx,cy,s/6,color); break;
+    default: tft.drawCircle(cx,cy,s/2,color); tft.drawCircle(cx,cy,s/3,color); star(cx,cy,s/6,color); break;
+  }
+}
+void drawCardArt(uint8_t id,int x,int y,int w,int h,bool mini=false){
+  tft.fillRoundRect(x,y,w,h,5,NAVY); tft.drawRoundRect(x,y,w,h,5,GOLD);
+  cardMotif(id,x+w/2,y+h/2,mini?min(w,h)/3:min(w,h)/4,GOLD);
+  if(!mini){ text(cards[id].name,x+6,y+h-18,1,CREAM); }
+}
+void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color){
+  tft.drawCircle(cx,cy,r+2,color); cardMotif(id%12,cx,cy,r,color);
+}
+void drawDaily(){ frame("DAILY OMEN"); const Card&c=cards[drawn[0]]; center(String(signs[signIndex].name)+"  ·  "+moonPhase(),51,1,GOLD); if(reveal==0){ button(70,72,180,92,"TOUCH TO DRAW"); center("Let the question arrive",182,1,MUTED); } else { drawCardArt(drawn[0],18,66,108,132); center(reversed[0]?"REVERSED":"UPRIGHT",76,1,reversed[0]?BURG:GOLD); textWrap(reversed[0]?c.rev:c.up,140,96,1,CREAM,150); center("Touch for another omen",202,1,MUTED); } footer(); }
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width){ tft.setTextSize(size); String word,line; int yy=y; for(unsigned i=0;i<s.length();i++){ char ch=s[i]; if(ch==' '){ if(tft.textWidth(line+word)>width){ text(line,x,yy,size,color); yy+=12; line="";} line+=word+" "; word="";} else word+=ch; } line+=word; if(line.length()) text(line,x,yy,size,color); }
-void drawSpread(){ frame("THREE CARD READING"); center(String(signs[signIndex].name)+"  ·  "+(reveal<3?"reveal the cards":"your constellation of meaning"),51,1,GOLD); const char* pos[]={"PAST","PRESENT","BECOMING"}; for(int i=0;i<3;i++){ int x=18+i*101; if(i>=reveal){ button(x,78,84,105,"REVEAL",BURG); text(pos[i],x+20,190,1,GOLD); } else { tft.fillRoundRect(x,78,84,105,6,NAVY); tft.drawRoundRect(x,78,84,105,6,GOLD); text(cards[drawn[i]].name,x+7,88,1,CREAM); text(reversed[i]?"REV":"UP",x+27,107,1,reversed[i]?BURG:GOLD); textWrap(cards[drawn[i]].key,x+8,130,1,MUTED,68); text(pos[i],x+20,190,1,GOLD); } } if(reveal==3){ textWrap(cards[drawn[0]].up,25,207,1,MUTED,270); } footer(); }
+void drawSpread(){ frame("THREE CARD READING"); center(String(signs[signIndex].name)+"  ·  "+(reveal<3?"reveal the cards":"your constellation of meaning"),51,1,GOLD); const char* pos[]={"PAST","PRESENT","BECOMING"}; for(int i=0;i<3;i++){ int x=18+i*101; if(i>=reveal){ button(x,78,84,105,"REVEAL",BURG); text(pos[i],x+20,190,1,GOLD); } else { drawCardArt(drawn[i],x,78,84,105,true); text(cards[drawn[i]].name,x+7,88,1,CREAM); text(reversed[i]?"REV":"UP",x+27,107,1,reversed[i]?BURG:GOLD); textWrap(cards[drawn[i]].key,x+8,130,1,MUTED,68); text(pos[i],x+20,190,1,GOLD); } } if(reveal==3){ textWrap(cards[drawn[0]].up,25,207,1,MUTED,270); } footer(); }
 void drawCabinet(){ frame("THE CABINET"); center("A little archive of the self",50,1,MUTED); text("GUEST",28,76,1,GOLD); text(guestName,110,76,2,CREAM); button(28,98,82,25,"GUEST"); button(119,98,82,25,"MOON CHILD",NAVY); button(210,98,82,25,"STAR SEEKER",NAVY); text("SIGN",28,136,1,GOLD); text(signs[signIndex].name,110,136,2,CREAM); text("ELEMENT",28,164,1,GOLD); text(signs[signIndex].element,110,164,1,CREAM); text("MOON",28,184,1,GOLD); text(moonPhase(),110,184,1,CREAM); button(70,207,180,20,"RETURN TO RITUAL",BURG); footer(); }
 void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22); reversed[i]=random(100)<25; } screen=three?SPREAD:DAILY; }
 void tap(int x,int y){ if(screen==HOME){ if(y>88&&y<135){ if(x<160)newReading(false); else newReading(true); } else if(y>140&&y<187){ if(x<160)screen=ZODIAC; else screen=CABINET; } }
