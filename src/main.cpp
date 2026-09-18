@@ -51,8 +51,8 @@ const Card cards[] = {
  {"The World","completion","A cycle has gathered its meaning. Honor how far you have come before opening the next door.","Something is almost complete, but one loose thread deserves your attention."}
 };
 
-enum Screen { HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET };
-Screen screen=HOME; int signIndex=0, spreadMode=0, reveal=0, detailCard=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
+enum Screen { BOOT, HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET };
+Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 uint32_t uiRevision=0;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
 
@@ -102,7 +102,16 @@ void frame(const String&title){
 }
 void button(int x,int y,int w,int h,const String&label,uint16_t fill=BURG){ tft.fillRoundRect(x,y,w,h,6,fill); tft.drawRoundRect(x,y,w,h,6,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); int tx=x+(w-tft.textWidth(label))/2; tft.setCursor(tx,y+(h-8)/2); tft.print(label); }
 void footer(){ text("THE ASTRAL CABINET",92,222,1,MUTED); }
-void splash(){ tft.fillScreen(INK); center("THE",62,2,GOLD); center("ASTRAL",88,4,CREAM); center("CABINET",126,3,GOLD); center("a small instrument for reflection",174,1,MUTED); delay(1600); }
+void drawBoot(){
+  if(!drawSdArt("/astral/boot.jpg",0,0)){
+    tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
+    center("THE",62,2,GOLD); center("ASTRAL",88,4,CREAM); center("CABINET",126,3,GOLD);
+    center("a small instrument for reflection",174,1,MUTED);
+  }
+  tft.setTextWrap(false,false); tft.setTextColor(CREAM); tft.setTextSize(1);
+  const String prompt="TOUCH TO ENTER";
+  tft.setCursor((W-tft.textWidth(prompt))/2,222); tft.print(prompt);
+}
 void drawHome(){ frame("THE ASTRAL CABINET"); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED); }
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
 void drawZodiacTile(uint8_t id,int x,int y){
@@ -222,6 +231,7 @@ void drawCardDetail(){
 void drawCabinet(){ frame("THE CABINET"); center("A little archive of the self",50,1,MUTED); text("GUEST",28,76,1,GOLD); text(guestName,110,76,2,CREAM); button(28,98,82,25,"GUEST"); button(119,98,82,25,"MOON CHILD",NAVY); button(210,98,82,25,"STAR SEEKER",NAVY); text("SIGN",28,136,1,GOLD); text(signs[signIndex].name,110,136,2,CREAM); text("ELEMENT",28,164,1,GOLD); text(signs[signIndex].element,110,164,1,CREAM); text("MOON",28,184,1,GOLD); text(moonPhase(),110,184,1,CREAM); button(20,195,280,28,"RETURN TO RITUAL",BURG); }
 void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22); reversed[i]=random(100)<25; } screen=three?SPREAD:DAILY; }
 void tap(int x,int y){
+ if(screen==BOOT){ screen=HOME; uiRevision++; return; }
  if(screen!=HOME && x<65 && y<48){ screen=HOME; uiRevision++; return; }
  if(screen==HOME){ if(y>88&&y<135){ if(x<160)newReading(false); else newReading(true); } else if(y>140&&y<187){ if(x<160)screen=ZODIAC; else screen=CABINET; } }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
@@ -263,10 +273,8 @@ void setup(){
   prefs.begin("cabinet",false);
   guestName=prefs.getString("name",DEFAULT_NAME);
   Serial.println("ASTRAL: preferences complete");
-  splash();
-  Serial.println("ASTRAL: splash complete");
-  drawHome();
-  Serial.println("ASTRAL: home complete");
+  drawBoot();
+  Serial.println("ASTRAL: boot art complete");
 }
 void loop(){
   if(touch.touched()){
@@ -280,11 +288,12 @@ void loop(){
     while(touch.touched())delay(10);
     delay(120);
   }
-  static Screen last=HOME;
+  static Screen last=BOOT;
   static int lastReveal=-1;
   static uint32_t lastUiRevision=UINT32_MAX;
   if(last!=screen||lastReveal!=reveal||lastUiRevision!=uiRevision){
-    if(screen==HOME)drawHome();
+    if(screen==BOOT)drawBoot();
+    else if(screen==HOME)drawHome();
     else if(screen==ZODIAC)drawZodiac();
     else if(screen==MENU)drawMenu();
     else if(screen==DAILY)drawDaily();
