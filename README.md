@@ -108,6 +108,7 @@ python3 tools/prepare_boot_art.py /path/to/journey-art.png --output assets/sd/as
 At startup, tap the illustrated Astral Cabinet entry screen, then choose a journey.
 **Offline** opens the current four-option reading menu. **Online** is intentionally
 present but inactive until its connected experience is implemented.
+The **BACK** button on the four-option menu returns to the journey choice screen.
 
 Tap the large buttons. A reversed draw is rendered upside down. On the tarot
 reading screen, tap each face-down card to reveal it, then tap a revealed card
