@@ -98,4 +98,29 @@ void setup(){
   drawHome();
   Serial.println("ASTRAL: home complete");
 }
-void loop(){ if(touch.touched()){ TS_Point p=touch.getPoint(); int x=map(p.x,TOUCH_X_MIN,TOUCH_X_MAX,0,W); int y=map(p.y,TOUCH_Y_MIN,TOUCH_Y_MAX,0,H); x=constrain(x,0,W-1); y=constrain(y,0,H-1); tap(x,y); while(touch.touched())delay(10); delay(120); } static Screen last=HOME; static int lastReveal=-1; if(last!=screen||lastReveal!=reveal){ if(screen==HOME)drawHome(); else if(screen==ZODIAC)drawZodiac(); else if(screen==MENU)drawMenu(); else if(screen==DAILY)drawDaily(); else if(screen==SPREAD)drawSpread(); else if(screen==CABINET)drawCabinet(); last=screen; lastReveal=reveal; } }
+void loop(){
+  if(touch.touched()){
+    TS_Point p=touch.getPoint();
+    int x=map(p.x,TOUCH_X_MIN,TOUCH_X_MAX,0,W);
+    int y=map(p.y,TOUCH_Y_MIN,TOUCH_Y_MAX,0,H);
+    x=constrain(x,0,W-1);
+    y=constrain(y,0,H-1);
+    Serial.printf("ASTRAL: touch raw=%d,%d,%d mapped=%d,%d\\n", p.x,p.y,p.z,x,y);
+    tap(x,y);
+    while(touch.touched())delay(10);
+    delay(120);
+  }
+  static Screen last=HOME;
+  static int lastReveal=-1;
+  if(last!=screen||lastReveal!=reveal){
+    if(screen==HOME)drawHome();
+    else if(screen==ZODIAC)drawZodiac();
+    else if(screen==MENU)drawMenu();
+    else if(screen==DAILY)drawDaily();
+    else if(screen==SPREAD)drawSpread();
+    else if(screen==CARD)drawDaily();
+    else if(screen==CABINET)drawCabinet();
+    last=screen;
+    lastReveal=reveal;
+  }
+}
