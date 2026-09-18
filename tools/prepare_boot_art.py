@@ -24,8 +24,14 @@ def resize_crop(image: Image.Image, size: tuple[int, int]) -> Image.Image:
     return image.resize(size, Image.Resampling.LANCZOS)
 
 
-parser = argparse.ArgumentParser(description="Make the CYD Astral Cabinet boot-screen JPEG.")
-parser.add_argument("source", type=Path, help="Original boot illustration (PNG or JPEG)")
+parser = argparse.ArgumentParser(description="Make a 320x240 CYD full-screen background JPEG.")
+parser.add_argument("source", type=Path, help="Original full-screen illustration (PNG or JPEG)")
+parser.add_argument(
+    "--output",
+    type=Path,
+    default=ROOT / "assets" / "sd" / "astral" / "boot.jpg",
+    help="Output JPEG path (default: assets/sd/astral/boot.jpg)",
+)
 args = parser.parse_args()
 
 if not args.source.is_file():
@@ -34,7 +40,7 @@ if not args.source.is_file():
 with Image.open(args.source) as raw:
     image = resize_crop(raw.convert("RGB"), TARGET)
 
-output = ROOT / "assets" / "sd" / "astral" / "boot.jpg"
+output = args.output
 output.parent.mkdir(parents=True, exist_ok=True)
 image.save(output, "JPEG", quality=92, optimize=True, progressive=False)
 print(f"Wrote {output} ({image.width}x{image.height})")
