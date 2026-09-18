@@ -87,7 +87,8 @@ void setup(){
   tft.invertDisplay(true);
   Serial.printf("ASTRAL: dimensions %d x %d\\n", tft.width(), tft.height());
   Serial.println("ASTRAL: rotation complete");
-  touch.begin();
+  SPI.begin(14, 12, 13, 33);
+  touch.begin(SPI);
   touch.setRotation(3);
   Serial.println("ASTRAL: touch init complete");
   prefs.begin("cabinet",false);
