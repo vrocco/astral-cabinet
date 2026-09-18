@@ -83,10 +83,10 @@ void setup(){
   Serial.println("ASTRAL: backlight on");
   tft.init();
   Serial.println("ASTRAL: tft init complete");
-  tft.setRotation(1);
+  tft.setRotation(3);
   Serial.println("ASTRAL: rotation complete");
   touch.begin();
-  touch.setRotation(1);
+  touch.setRotation(3);
   Serial.println("ASTRAL: touch init complete");
   prefs.begin("cabinet",false);
   guestName=prefs.getString("name",DEFAULT_NAME);
