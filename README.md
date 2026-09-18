@@ -29,17 +29,21 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/card_back_s.jpg
 /astral/00.jpg
 /astral/00_s.jpg
+/astral/00_r.jpg
+/astral/00_rs.jpg
+/astral/zodiac/00.jpg
 ...
 ```
 
 For a one-step copy, `dist/astral-cabinet-sd-art.zip` contains that same
 top-level `astral/` directory, plus a SHA-256 file for integrity checking.
 
-Full images are 120×160 JPEGs and spread thumbnails are 78×104 JPEGs. This
-keeps every asset small and decoded quickly while delivering an illustrated
-version of all 22 Major Arcana cards. The complete original Art Nouveau deck
-is included, along with the card back; the line-motif renderer remains only as
-a safe fallback when the SD card is absent or unreadable.
+Full images are 120×160 JPEGs and spread thumbnails are 78×104 JPEGs. Every
+Major Arcana card also has pre-rotated 180° full and thumbnail assets for a
+genuine reversed draw. Twelve 60×60 illustrated zodiac medallions live under
+`/astral/zodiac/`. This keeps every asset small and decoded quickly while
+delivering an illustrated Art Nouveau deck; the line-motif renderer remains
+only as a safe fallback when the SD card is absent or unreadable.
 
 The firmware detects the card at boot. Its serial output states either
 `ASTRAL: SD art ready` or `ASTRAL: SD art unavailable; using vector fallback`.
@@ -77,9 +81,19 @@ run:
 python3 tools/prepare_art.py /path/to/source-art
 ```
 
+For zodiac medallions, use `00.png` through `11.png` and run:
+
+```sh
+python3 tools/prepare_zodiac_art.py /path/to/zodiac-source-art
+```
+
 ## Controls
 
-Tap the large buttons. On the reading screen, tap each face-down card to reveal it. The top-left corner returns to the main menu.
+Tap the large buttons. A reversed draw is rendered upside down. On the tarot
+reading screen, tap each face-down card to reveal it, then tap a revealed card
+to read its meaning. In the Zodiac screen, tapping a medallion selects it and
+opens the reading menu. The visible **HOME** button at top left returns to the
+main menu from every non-home screen.
 
 ## License
 

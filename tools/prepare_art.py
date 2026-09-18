@@ -45,6 +45,7 @@ if not sources:
     raise SystemExit(f"No PNG or JPEG source art found in {args.source_dir}")
 
 cards: list[tuple[str, Image.Image]] = []
+asset_count = 0
 for source in sources:
     name = source.stem
     if not (name == "card_back" or re.fullmatch(r"(?:0[0-9]|1[0-9]|2[0-1])", name)):
@@ -54,6 +55,15 @@ for source in sources:
     card.save(OUT / f"{name}.jpg", "JPEG", quality=91, optimize=True, progressive=False)
     thumb = card.resize(THUMB_SIZE, Image.Resampling.LANCZOS)
     thumb.save(OUT / f"{name}_s.jpg", "JPEG", quality=88, optimize=True, progressive=False)
+    asset_count += 2
+    if name != "card_back":
+        card.transpose(Image.Transpose.ROTATE_180).save(
+            OUT / f"{name}_r.jpg", "JPEG", quality=91, optimize=True, progressive=False
+        )
+        thumb.transpose(Image.Transpose.ROTATE_180).save(
+            OUT / f"{name}_rs.jpg", "JPEG", quality=88, optimize=True, progressive=False
+        )
+        asset_count += 2
     cards.append((name, card))
 
 # A four-column contact sheet is easy to inspect at a glance before copying assets to SD.
@@ -68,5 +78,5 @@ for index, (name, card) in enumerate(cards):
     draw.text((x, y + 168), name.replace("_", " ").upper(), fill=(238, 209, 126))
 canvas.save(ROOT / "assets" / "art-preview.jpg", "JPEG", quality=92, optimize=True)
 
-print(f"Wrote {len(cards) * 2} SD JPEGs to {OUT}")
+print(f"Wrote {asset_count} SD JPEGs to {OUT}")
 print(f"Preview: {ROOT / 'assets' / 'art-preview.jpg'}")
