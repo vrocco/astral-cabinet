@@ -56,12 +56,14 @@ for source in sources:
     thumb.save(OUT / f"{name}_s.jpg", "JPEG", quality=88, optimize=True, progressive=False)
     cards.append((name, card))
 
-# A 4x2 contact sheet is easy to inspect at a glance before copying assets to SD.
-canvas = Image.new("RGB", (4 * 150, 2 * 205), (10, 18, 42))
+# A four-column contact sheet is easy to inspect at a glance before copying assets to SD.
+columns = 4
+rows = (len(cards) + columns - 1) // columns
+canvas = Image.new("RGB", (columns * 150, rows * 205), (10, 18, 42))
 draw = ImageDraw.Draw(canvas)
 for index, (name, card) in enumerate(cards):
-    x = (index % 4) * 150 + 15
-    y = (index // 4) * 205 + 18
+    x = (index % columns) * 150 + 15
+    y = (index // columns) * 205 + 18
     canvas.paste(card, (x, y))
     draw.text((x, y + 168), name.replace("_", " ").upper(), fill=(238, 209, 126))
 canvas.save(ROOT / "assets" / "art-preview.jpg", "JPEG", quality=92, optimize=True)

@@ -32,12 +32,14 @@ Use a FAT32-formatted microSD card. Copy the repository's
 ...
 ```
 
+For a one-step copy, `dist/astral-cabinet-sd-art.zip` contains that same
+top-level `astral/` directory, plus a SHA-256 file for integrity checking.
+
 Full images are 120×160 JPEGs and spread thumbnails are 78×104 JPEGs. This
-keeps each asset small and decoded quickly while leaving a clear upgrade path
-to an illustrated image for every Major Arcana card. The first art tranche is
-included for The Fool, Magician, High Priestess, Empress, Emperor, Star, Moon,
-and the card back. Cards without an SD image continue to use the fallback
-motif until their illustration is added.
+keeps every asset small and decoded quickly while delivering an illustrated
+version of all 22 Major Arcana cards. The complete original Art Nouveau deck
+is included, along with the card back; the line-motif renderer remains only as
+a safe fallback when the SD card is absent or unreadable.
 
 The firmware detects the card at boot. Its serial output states either
 `ASTRAL: SD art ready` or `ASTRAL: SD art unavailable; using vector fallback`.
