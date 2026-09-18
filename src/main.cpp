@@ -72,5 +72,28 @@ void tap(int x,int y){ if(screen==HOME){ if(y>88&&y<135){ if(x<160)newReading(fa
  else if(screen==SPREAD){ if(x<45&&y<45)screen=HOME; else if(reveal<3)reveal++; else if(y>195)newReading(true); }
  else if(screen==CABINET){ if(y>205)screen=HOME; else if(y>95&&y<130){ if(x<112)guestName="Astral Guest"; else if(x<207)guestName="Moon Child"; else guestName="Star Seeker"; prefs.putString("name",guestName); } else if(x<45&&y<45)screen=HOME; }
 }
-void setup(){ Serial.begin(115200); randomSeed(analogRead(34)); tft.init(); tft.setRotation(1); touch.begin(); touch.setRotation(1); prefs.begin("cabinet",false); guestName=prefs.getString("name",DEFAULT_NAME); splash(); drawHome(); }
+void setup(){
+  Serial.begin(115200);
+  delay(300);
+  Serial.println("ASTRAL: setup start");
+  randomSeed(analogRead(34));
+  Serial.println("ASTRAL: random ready");
+  pinMode(21, OUTPUT);
+  digitalWrite(21, HIGH);
+  Serial.println("ASTRAL: backlight on");
+  tft.init();
+  Serial.println("ASTRAL: tft init complete");
+  tft.setRotation(1);
+  Serial.println("ASTRAL: rotation complete");
+  touch.begin();
+  touch.setRotation(1);
+  Serial.println("ASTRAL: touch init complete");
+  prefs.begin("cabinet",false);
+  guestName=prefs.getString("name",DEFAULT_NAME);
+  Serial.println("ASTRAL: preferences complete");
+  splash();
+  Serial.println("ASTRAL: splash complete");
+  drawHome();
+  Serial.println("ASTRAL: home complete");
+}
 void loop(){ if(touch.touched()){ TS_Point p=touch.getPoint(); int x=map(p.x,TOUCH_X_MIN,TOUCH_X_MAX,0,W); int y=map(p.y,TOUCH_Y_MIN,TOUCH_Y_MAX,0,H); x=constrain(x,0,W-1); y=constrain(y,0,H-1); tap(x,y); while(touch.touched())delay(10); delay(120); } static Screen last=HOME; static int lastReveal=-1; if(last!=screen||lastReveal!=reveal){ if(screen==HOME)drawHome(); else if(screen==ZODIAC)drawZodiac(); else if(screen==MENU)drawMenu(); else if(screen==DAILY)drawDaily(); else if(screen==SPREAD)drawSpread(); else if(screen==CABINET)drawCabinet(); last=screen; lastReveal=reveal; } }
