@@ -79,8 +79,8 @@ const Card cards[] = {
  {"The World","completion","A cycle has gathered its meaning. Honor how far you have come before opening the next door.","Something is almost complete, but one loose thread deserves your attention."}
 };
 
-enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER };
-Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
+enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER };
+Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0, ritualVariant=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 uint32_t uiRevision=0;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
 String readSdText(const char* path, size_t limit=8192);
@@ -379,6 +379,7 @@ void settingsGear(int cx,int cy){
   for(int i=0;i<8;i++){ float a=i*0.785398f; int x1=cx+cos(a)*7,y1=cy+sin(a)*7,x2=cx+cos(a)*10,y2=cy+sin(a)*10; tft.drawLine(x1,y1,x2,y2,BLACK); }
   tft.drawCircle(cx,cy,7,BLACK); tft.drawCircle(cx,cy,3,BLACK); tft.fillCircle(cx,cy,1,BLACK);
 }
+void drawSettingsGear(){ if(!drawSdArt("/astral/settings_gear.jpg",215,205)) settingsGear(230,220); }
 void drawBoot(){
   if(!drawSdArt("/astral/boot.jpg",0,0)){
     tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
@@ -418,9 +419,10 @@ void drawOnlineSetup(){
   overlayCenter("SAVE, THEN THE CABINET RESTARTS",204,1,MUTED);
 }
 void drawHome(){
+  const String fourthDoor=internetReady ? "LIVE ASTRAL" : "ELEMENTAL RITUAL";
   if(!drawSdArt("/astral/doorways.jpg",0,0)){
-    frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"LIVE ASTRAL"); center("Touch a doorway to begin",202,1,MUTED);
-    settingsGear(270,225);
+    frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,fourthDoor); center("Touch a doorway to begin",202,1,MUTED);
+    drawSettingsGear();
     return;
   }
   button(14,16,32,15,"BACK",NAVY);
@@ -430,8 +432,45 @@ void drawHome(){
   doorPlaque(30,105,100,"DAILY OMEN");
   doorPlaque(190,105,100,"TAROT READING",BURG);
   doorPlaque(35,188,90,"ZODIAC");
-  doorPlaque(185,188,110,"LIVE ASTRAL",BURG);
-  settingsGear(270,225);
+  doorPlaque(185,188,110,fourthDoor,BURG);
+  drawSettingsGear();
+}
+struct ElementalRitual { const char* intention; const char* practice; const char* release; };
+const ElementalRitual elementalRituals[4][3] = {
+  { // Fire
+    {"Name the spark you are ready to protect.","Light one small action before the day ends.","Release the need to make the first step perfect."},
+    {"Choose one brave truth to say aloud.","Stand tall and take three slow breaths.","Let urgency become clear, steady purpose."},
+    {"Notice where your energy wants to go.","Move your body for one song or one block.","Leave behind the task that is only noise."}},
+  { // Earth
+    {"Return to what is solid and already working.","Tend one useful thing with full attention.","Set down a burden that is not yours to carry."},
+    {"Choose a promise your future self will feel.","Make your next step small, physical, and real.","Release the demand for immediate results."},
+    {"Ask what needs patient care today.","Put both feet on the floor and breathe slowly.","Let enough be enough for this moment."}},
+  { // Air
+    {"Make room for the thought beneath the noise.","Write one honest sentence without editing it.","Release the answer you feel forced to give."},
+    {"Follow the question that feels most alive.","Open a window or change your point of view.","Let an old story pass without an argument."},
+    {"Name what you are curious to understand.","Share one kind, precise thought with someone.","Release the need to know every outcome."}},
+  { // Water
+    {"Honor the feeling asking to be witnessed.","Place a hand over your heart and soften your jaw.","Release the urge to explain your tenderness."},
+    {"Notice what is quietly asking for compassion.","Drink water slowly and let the moment settle.","Let yesterday's emotion move on through you."},
+    {"Ask where you need a gentler boundary.","Choose a small act that restores your inner space.","Release the feeling you no longer need to hold."}}
+};
+int selectedElement(){
+  String element=String(signs[signIndex].element);
+  if(element=="Fire") return 0;
+  if(element=="Earth") return 1;
+  if(element=="Air") return 2;
+  return 3;
+}
+void drawElementalRitual(){
+  if(!drawSdArt("/astral/elemental_ritual.jpg",0,0)) frame("ELEMENTAL RITUAL");
+  button(14,16,32,15,"BACK",NAVY);
+  const ElementalRitual& ritual=elementalRituals[selectedElement()][ritualVariant%3];
+  overlayAt("ELEMENTAL RITUAL",230,47,1,CREAM);
+  overlayAt(String(signs[signIndex].name)+"  ·  "+signs[signIndex].element,230,63,1,GOLD);
+  text("INTENTION",174,80,1,GOLD); textWrap(ritual.intention,174,91,1,CREAM,112,2);
+  text("PRACTICE",174,120,1,GOLD); textWrap(ritual.practice,174,131,1,CREAM,112,2);
+  text("RELEASE",174,160,1,GOLD); textWrap(ritual.release,174,171,1,CREAM,112,2);
+  overlayAt("TOUCH THE PANEL TO RENEW",230,208,1,CREAM);
 }
 void drawSettings(){
   frame("SETTINGS");
@@ -647,7 +686,7 @@ void tap(int x,int y){
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
  if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:(screen==CONFIRM_NETWORK_DELETE?SETTINGS:HOME); uiRevision++; return; }
- if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=245&&x<295&&y>=214&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:JOURNEY; }
+ if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=205&&x<255&&y>=214&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:ELEMENTAL_RITUAL; }
  else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=144&&y<176)screen=CONFIRM_NETWORK_DELETE; }
  else if(screen==CONFIRM_NETWORK_DELETE){
    if(x>=28&&x<146&&y>=165&&y<195)screen=SETTINGS;
@@ -659,6 +698,7 @@ void tap(int x,int y){
      delay(200); ESP.restart(); return;
    }
  }
+ else if(screen==ELEMENTAL_RITUAL){ if(x>=145&&x<310&&y>=55&&y<220) ritualVariant=(ritualVariant+1)%3; }
  else if(screen==LIVE_ASTRAL){ if(y>=130&&y<205&&x<105){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=130&&y<205&&x<215)screen=RITUAL_CALENDAR; else if(y>=130&&y<205){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
  else if(screen==MENU){ if(x>=10&&x<112&&y>=130&&y<180)newReading(false); else if(x>=208&&x<310&&y>=130&&y<180)newReading(true); else if(x>=110&&x<210&&y>=160&&y<200)screen=ZODIAC; }
@@ -729,6 +769,7 @@ void loop(){
     else if(screen==HOME)drawHome();
     else if(screen==SETTINGS)drawSettings();
     else if(screen==CONFIRM_NETWORK_DELETE)drawConfirmNetworkDelete();
+    else if(screen==ELEMENTAL_RITUAL)drawElementalRitual();
     else if(screen==ZODIAC)drawZodiac();
     else if(screen==MENU)drawMenu();
     else if(screen==DAILY)drawDaily();

@@ -33,12 +33,14 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/boot.jpg
 /astral/journey.jpg
 /astral/doorways.jpg
+/astral/settings_gear.jpg
 /astral/online.jpg
 /astral/setup.html
 /astral/live_astral.jpg
 /astral/sky_now.jpg
 /astral/ritual_calendar.jpg
 /astral/cosmic_weather.jpg
+/astral/elemental_ritual.jpg
 /astral/00.jpg
 /astral/00_s.jpg
 /astral/00_r.jpg
@@ -166,9 +168,12 @@ prior credentials. Perform setup away from untrusted nearby users.
 
 ## Live Astral
 
-The main menu always keeps **Zodiac**. The fourth doorway is **Live Astral**;
-offline it returns to the journey screen, while online it opens three connected
-experiences illustrated with their own Art Nouveau backgrounds:
+The main menu always keeps **Zodiac**. When offline, the fourth doorway is
+**Elemental Ritual**: a locally generated reflection for the selected sign's
+Fire, Earth, Air, or Water element. Touch its text panel to rotate among three
+offline ritual prompts. When online, that doorway becomes **Live Astral** and
+opens three connected experiences illustrated with their own Art Nouveau
+backgrounds:
 
 - **Sky Now** shows NTP-synchronized local time, current lunar phase and
   illumination, plus the next new and full moon.
