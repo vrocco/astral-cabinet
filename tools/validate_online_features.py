@@ -16,14 +16,17 @@ required_source = (
     'COSMIC_FEED_URL="https://raw.githubusercontent.com/vrocco/astral-cabinet/main/data/cosmic.txt"',
     'readSdText("/astral/setup.html")',
     'refreshCosmicCache()',
+    'drawSdArt("/astral/reading_menu.jpg",0,0)',
+    'x>=0 && x<65 && y>=0 && y<50',
 )
 for item in required_source:
     assert item in source, item
-for placeholder in ("{{NETWORK_OPTIONS}}", "{{TIMEZONE_OPTIONS}}", "{{LATITUDE}}", "{{LONGITUDE}}"):
+for placeholder in ("{{NETWORK_OPTIONS}}", "{{TIMEZONE_OPTIONS}}", "{{ZIPCODE}}"):
     assert placeholder in portal, placeholder
+assert 'phone-location' not in portal
 assert feed[0] == "ASTRAL COSMIC WEATHER", feed[:1]
 assert feed[2].startswith("Moon: "), feed[2]
 assert feed[3].startswith("Next full: "), feed[3]
 assert feed[4].startswith("Next new: "), feed[4]
 assert "factory,  app,  factory, 0x10000,  0x3F0000," in partitions
-print("Online feature wiring checks passed: 16")
+print("Online feature wiring checks passed: 18")
