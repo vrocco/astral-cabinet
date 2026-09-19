@@ -8,6 +8,8 @@
 #include <TJpg_Decoder.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 
 TFT_eSPI tft(240, 320);
 SPIClass touchSPI = SPIClass(VSPI);
@@ -21,11 +23,27 @@ bool portalActive = false;
 bool webRoutesReady = false;
 String savedWifiSsid;
 String savedWifiPassword;
+String savedTimezone="PST8PDT,M3.2.0,M11.1.0";
+float skyLatitude=36.1699f;
+float skyLongitude=-115.1398f;
+bool clockSynchronized=false;
+bool internetReady=false;
+uint32_t lastClockRequest=0;
+uint32_t lastCosmicRefresh=0;
+const char* COSMIC_FEED_URL="https://raw.githubusercontent.com/vrocco/astral-cabinet/main/data/cosmic.txt";
 
 constexpr int W=320, H=240;
 constexpr int TOUCH_X_MIN=200, TOUCH_X_MAX=3900, TOUCH_Y_MIN=200, TOUCH_Y_MAX=3900;
 const uint16_t INK=0x0841, NAVY=0x10A3, BURG=0x780C, GOLD=0xD5A5, CREAM=0xFFDB, MUTED=0xB5B6, BLACK=0x0000;
 const char* DEFAULT_NAME="Astral Guest";
+struct TimezoneChoice { const char* value; const char* label; };
+const TimezoneChoice timezones[] = {
+ {"PST8PDT,M3.2.0,M11.1.0","Pacific (Los Angeles)"},
+ {"MST7MDT,M3.2.0,M11.1.0","Mountain (Denver)"},
+ {"CST6CDT,M3.2.0,M11.1.0","Central (Chicago)"},
+ {"EST5EDT,M3.2.0,M11.1.0","Eastern (New York)"},
+ {"UTC0","UTC"}
+};
 
 struct Zodiac { const char* name; const char* glyph; const char* element; const char* theme; };
 const Zodiac signs[] = {
@@ -59,10 +77,11 @@ const Card cards[] = {
  {"The World","completion","A cycle has gathered its meaning. Honor how far you have come before opening the next door.","Something is almost complete, but one loose thread deserves your attention."}
 };
 
-enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET };
+enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER };
 Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 uint32_t uiRevision=0;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
+String readSdText(const char* path, size_t limit=8192);
 
 // The CYD's microSD socket is on its own HSPI bus: SCK=18, MISO=19,
 // MOSI=23, CS=5. Keeping it separate from the TFT and touch buses prevents
@@ -122,20 +141,33 @@ String nearbyNetworkOptions(){
   return options;
 }
 
+String readSdText(const char* path, size_t limit){
+  if(!sdArtReady) return String();
+  File file=SD.open(path,FILE_READ);
+  if(!file) return String();
+  String text; text.reserve(file.size());
+  while(file.available() && text.length()<limit) text += char(file.read());
+  file.close();
+  return text;
+}
+
+String timezoneOptions(){
+  String options;
+  for(const auto& zone:timezones){
+    options += F("<option value=\""); options += zone.value; options += F("\"");
+    if(savedTimezone==zone.value) options += F(" selected");
+    options += F(">"); options += zone.label; options += F("</option>");
+  }
+  return options;
+}
+
 String setupPortalPage(){
-  String page=F(
-    "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Astral Cabinet</title><style>"
-    "body{margin:0;background:#090d22;color:#fff0c9;font-family:Georgia,serif}main{max-width:560px;margin:auto;padding:28px 20px}"
-    ".brand{display:flex;align-items:center;justify-content:center;gap:12px;margin:4px auto 22px}.brand svg{width:82px;height:82px;filter:drop-shadow(0 0 10px #80692f)}"
-    ".wordmark{line-height:.86;text-align:left;letter-spacing:.19em;color:#e4bd63}.wordmark span{display:block;font-size:.78rem}.wordmark strong{display:block;font-size:1.42rem;font-weight:normal}"
-    "h1{color:#e4bd63;letter-spacing:.08em;font-size:1.65rem;text-align:center}p{line-height:1.5;color:#dbd0b7}"
-    "form{background:#171d45;border:1px solid #d4aa4f;border-radius:14px;padding:20px;margin-top:24px}label{display:block;margin:14px 0 6px;color:#e4bd63}"
-    "input,select,button{box-sizing:border-box;width:100%;padding:12px;border-radius:8px;font:inherit}input,select{background:#090d22;color:#fff0c9;border:1px solid #96783d}"
-    "button{margin-top:18px;background:#741c3b;color:#fff0c9;border:1px solid #e4bd63;cursor:pointer}.note{font-size:.9rem;color:#c2b99f}</style></head><body><main>"
-    "<div class=\"brand\"><svg viewBox='0 0 120 120' role='img' aria-label='Astral Cabinet mark'><path d='M22 101V40L60 15 98 40V101M30 101V49L60 29 90 49V101' fill='none' stroke='#e4bd63' stroke-width='3'/><path d='M42 101V53H78V101M42 53Q60 36 78 53' fill='#171d45' stroke='#e4bd63' stroke-width='3'/><circle cx='60' cy='68' r='10' fill='none' stroke='#fff0c9' stroke-width='2'/><path d='M60 56v24M48 68h24M53 61l14 14M67 61L53 75' stroke='#e4bd63' stroke-width='2'/><circle cx='60' cy='15' r='5' fill='#fff0c9'/><path d='M14 101h92' stroke='#e4bd63' stroke-width='3'/></svg><div class=\"wordmark\"><span>ASTRAL</span><strong>CABINET</strong></div></div>"
-    "<h1>CONNECT TO THE POWER OF THE UNIVERSE</h1><p>Choose the local Wi-Fi network that will carry the Astral Cabinet beyond its offline ritual.</p><form method=\"post\" action=\"/save\"><label for=\"ssid\">Nearby network</label><select id=\"ssid\" name=\"ssid\">");
-  page += nearbyNetworkOptions();
-  page += F("</select><label for=\"manual\">Or enter a network name</label><input id=\"manual\" name=\"manual\" maxlength=\"32\" autocapitalize=\"none\"><label for=\"password\">Wi-Fi password</label><input id=\"password\" name=\"password\" type=\"password\" maxlength=\"63\" autocomplete=\"current-password\"><button type=\"submit\">SAVE AND RESTART</button></form><p class=\"note\">The device restarts after saving. If your network is hidden, enter its name manually.</p></main></body></html>");
+  String page=readSdText("/astral/setup.html");
+  if(!page.length()) page=F("<!doctype html><html><body><h1>Astral Cabinet</h1><form method=\"post\" action=\"/save\"><label>Network <select name=\"ssid\">{{NETWORK_OPTIONS}}</select></label><label>Manual network <input name=\"manual\"></label><label>Password <input name=\"password\" type=\"password\"></label><button>Save and restart</button></form></body></html>");
+  page.replace("{{NETWORK_OPTIONS}}",nearbyNetworkOptions());
+  page.replace("{{TIMEZONE_OPTIONS}}",timezoneOptions());
+  page.replace("{{LATITUDE}}",String(skyLatitude,4));
+  page.replace("{{LONGITUDE}}",String(skyLongitude,4));
   return page;
 }
 
@@ -145,12 +177,23 @@ void handleSaveNetwork(){
   String ssid=webServer.arg("manual");
   if(!ssid.length()) ssid=webServer.arg("ssid");
   String password=webServer.arg("password");
-  if(!ssid.length() || ssid.length()>32 || password.length()>63){
+  String timezone=webServer.arg("timezone");
+  bool timezoneKnown=!timezone.length();
+  for(const auto& zone:timezones) if(timezone==zone.value) timezoneKnown=true;
+  float latitude=skyLatitude, longitude=skyLongitude;
+  if(webServer.arg("latitude").length()) latitude=webServer.arg("latitude").toFloat();
+  if(webServer.arg("longitude").length()) longitude=webServer.arg("longitude").toFloat();
+  if(!ssid.length() || ssid.length()>32 || password.length()>63 || !timezoneKnown || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180){
     webServer.send(400,"text/html",F("<html><body><h2>Network details are incomplete.</h2><p><a href=\"/\">Return to setup</a></p></body></html>"));
     return;
   }
+  if(timezone.length()) savedTimezone=timezone;
+  skyLatitude=latitude; skyLongitude=longitude;
   netPrefs.putString("ssid",ssid);
   netPrefs.putString("password",password);
+  netPrefs.putString("timezone",savedTimezone);
+  netPrefs.putFloat("latitude",skyLatitude);
+  netPrefs.putFloat("longitude",skyLongitude);
   webServer.send(200,"text/html",F("<html><body><h2>Saved.</h2><p>The Astral Cabinet is restarting to join the selected network.</p></body></html>"));
   delay(750);
   ESP.restart();
@@ -188,6 +231,9 @@ void stopConfigPortal(){
 void connectSavedWifi(){
   savedWifiSsid=netPrefs.getString("ssid","");
   savedWifiPassword=netPrefs.getString("password","");
+  savedTimezone=netPrefs.getString("timezone",savedTimezone);
+  skyLatitude=netPrefs.getFloat("latitude",skyLatitude);
+  skyLongitude=netPrefs.getFloat("longitude",skyLongitude);
   if(!savedWifiSsid.length()) return;
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
@@ -208,6 +254,95 @@ bool internetAvailable(uint32_t waitMs=0){
     delay(100);
   } while(true);
   return false;
+}
+
+void requestClockSync(){
+  if(WiFi.status()!=WL_CONNECTED || (lastClockRequest && millis()-lastClockRequest<10000)) return;
+  lastClockRequest=millis();
+  configTzTime(savedTimezone.c_str(),"pool.ntp.org","time.nist.gov");
+  Serial.println("ASTRAL: NTP synchronization requested");
+}
+
+bool clockIsValid(){ return time(nullptr)>1700000000; }
+
+void maintainClock(){
+  if(!clockIsValid()) requestClockSync();
+  clockSynchronized=clockIsValid();
+}
+
+struct LunarInfo { float age; int illumination; const char* phase; float nextNew; float nextFull; };
+LunarInfo lunarInfo(){
+  if(!clockIsValid()) return {0,0,"the moon keeps its own time",0,0};
+  constexpr float synodic=29.530588853f;
+  float age=fmodf((float(time(nullptr))-947182440.0f)/86400.0f,synodic);
+  if(age<0) age+=synodic;
+  float illumination=(1.0f-cosf(2.0f*PI*age/synodic))*50.0f;
+  const char* phase=age<1.84566f?"new moon":age<5.53699f?"waxing crescent":age<9.22831f?"first quarter":age<12.91963f?"waxing gibbous":age<16.61096f?"full moon":age<20.30228f?"waning gibbous":age<23.99361f?"last quarter":"waning crescent";
+  float nextNew=synodic-age;
+  float nextFull=age<synodic/2.0f ? synodic/2.0f-age : synodic*1.5f-age;
+  return {age,int(illumination+0.5f),phase,nextNew,nextFull};
+}
+
+String lunarCountdown(float days){
+  int hours=int(days*24.0f+0.5f);
+  return String(hours/24)+"d "+String(hours%24)+"h";
+}
+
+String localDateTime(){
+  if(!clockIsValid()) return "Awaiting a time signal";
+  struct tm local; time_t now=time(nullptr); localtime_r(&now,&local);
+  char formatted[36]; strftime(formatted,sizeof(formatted),"%a, %b %d · %I:%M %p",&local);
+  return String(formatted);
+}
+
+bool refreshCosmicCache(){
+  if(!internetReady || !sdArtReady || (lastCosmicRefresh && millis()-lastCosmicRefresh<21600000UL)) return false;
+  lastCosmicRefresh=millis();
+  WiFiClientSecure client; client.setInsecure();
+  HTTPClient http;
+  if(!http.begin(client,COSMIC_FEED_URL)) return false;
+  http.setTimeout(5000);
+  int status=http.GET();
+  int contentLength=http.getSize();
+  if(status!=HTTP_CODE_OK || contentLength<24 || contentLength>1600){ http.end(); return false; }
+  SD.remove("/astral/cosmic.tmp");
+  File cache=SD.open("/astral/cosmic.tmp",FILE_WRITE);
+  if(!cache){ http.end(); return false; }
+  int written=http.writeToStream(&cache);
+  cache.close(); http.end();
+  if(written!=contentLength){ SD.remove("/astral/cosmic.tmp"); return false; }
+  String candidate=readSdText("/astral/cosmic.tmp",1600);
+  if(!candidate.startsWith("ASTRAL COSMIC WEATHER")){ SD.remove("/astral/cosmic.tmp"); return false; }
+  SD.remove("/astral/cosmic.txt");
+  return SD.rename("/astral/cosmic.tmp","/astral/cosmic.txt");
+}
+
+String cosmicLine(uint8_t wanted){
+  String cache=readSdText("/astral/cosmic.txt",1600);
+  int line=0, start=0;
+  for(unsigned i=0;i<=cache.length();i++){
+    if(i==cache.length() || cache[i]=='\n'){
+      if(line==wanted){ String value=cache.substring(start,i); value.trim(); return value; }
+      line++; start=i+1;
+    }
+  }
+  return String();
+}
+
+bool cosmicCacheCurrent(){
+  if(!clockIsValid() || cosmicLine(0)!="ASTRAL COSMIC WEATHER") return false;
+  struct tm utc; time_t now=time(nullptr); gmtime_r(&now,&utc);
+  char expected[32]; strftime(expected,sizeof(expected),"Updated %Y-%m-%d UTC",&utc);
+  return cosmicLine(1)==expected;
+}
+
+float cachedEventDays(uint8_t lineIndex){
+  String line=cosmicLine(lineIndex);
+  int split=line.indexOf(':');
+  if(split<0) return -1;
+  time_t event=time_t(line.substring(split+1).toInt());
+  if(event<=time(nullptr)) return -1;
+  return float(event-time(nullptr))/86400.0f;
 }
 
 void text(const String&s,int x,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c,INK); tft.setTextSize(size); tft.setCursor(x,y); tft.print(s); }
@@ -278,7 +413,7 @@ void drawHome(){
   tft.setCursor((W-tft.textWidth(prompt))/2,38); tft.print(prompt);
   doorPlaque(30,105,100,"DAILY OMEN");
   doorPlaque(190,105,100,"TAROT READING",BURG);
-  doorPlaque(35,188,90,"ZODIAC");
+  doorPlaque(35,188,90,internetReady?"LIVE ASTRAL":"ZODIAC");
   doorPlaque(195,188,90,"CABINET",BURG);
 }
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
@@ -292,7 +427,7 @@ void drawZodiacTile(uint8_t id,int x,int y){
 }
 void drawZodiac(){ frame("CHOOSE YOUR SIGN"); for(int i=0;i<12;i++){ int col=i%4,row=i/4; drawZodiacTile(i,10+col*80,45+row*60); } }
 void drawMenu(){ frame("SELECT A READING"); center(String(signs[signIndex].name)+"  /  "+signs[signIndex].element,53,1,GOLD); button(30,75,260,34,"ONE-CARD DAILY OMEN"); button(30,120,260,34,"PAST / PRESENT / BECOMING"); button(30,165,125,30,"CHANGE SIGN",NAVY); button(165,165,125,30,"CABINET",NAVY); footer(); }
-String moonPhase(){ time_t now=time(nullptr); if(now<100000) return "the moon keeps its own time"; long days=(now/86400L)-10957; int phase=(days%30+30)%30; if(phase<2) return "new moon"; if(phase<7) return "waxing crescent"; if(phase<9) return "first quarter"; if(phase<14) return "waxing gibbous"; if(phase<16) return "full moon"; if(phase<22) return "waning gibbous"; if(phase<24) return "last quarter"; return "waning crescent"; }
+String moonPhase(){ return String(lunarInfo().phase); }
 
 void star(int cx,int cy,int r,uint16_t color){
   tft.drawLine(cx,cy-r,cx+r/3,cy+r/3,color); tft.drawLine(cx+r/3,cy+r/3,cx-r,cy-r/4,color);
@@ -397,13 +532,84 @@ void drawCardDetail(){
   footer();
 }
 void drawCabinet(){ frame("THE CABINET"); center("A little archive of the self",50,1,MUTED); text("GUEST",28,76,1,GOLD); text(guestName,110,76,2,CREAM); button(28,98,82,25,"GUEST"); button(119,98,82,25,"MOON CHILD",NAVY); button(210,98,82,25,"STAR SEEKER",NAVY); text("SIGN",28,136,1,GOLD); text(signs[signIndex].name,110,136,2,CREAM); text("ELEMENT",28,164,1,GOLD); text(signs[signIndex].element,110,164,1,CREAM); text("MOON",28,184,1,GOLD); text(moonPhase(),110,184,1,CREAM); button(20,195,280,28,"RETURN TO RITUAL",BURG); }
+void drawLiveAstral(){
+  frame("LIVE ASTRAL");
+  center("The cabinet is listening to the sky",52,1,MUTED);
+  button(30,72,260,32,"SKY NOW");
+  button(30,116,260,32,"RITUAL CALENDAR",NAVY);
+  button(30,160,260,32,"COSMIC WEATHER",NAVY);
+  center(clockSynchronized?"Time is synchronized by the stars":"Synchronizing celestial time...",206,1,GOLD);
+  footer();
+}
+void drawSkyNow(){
+  frame("SKY NOW");
+  LunarInfo moon=lunarInfo();
+  center(localDateTime(),52,1,GOLD);
+  String phase=moon.phase; int illumination=moon.illumination; float nextFull=moon.nextFull, nextNew=moon.nextNew;
+  if(cosmicCacheCurrent()){
+    String cachedMoon=cosmicLine(2); cachedMoon.remove(0,6);
+    int percent=cachedMoon.lastIndexOf(' ');
+    if(percent>0){ phase=cachedMoon.substring(0,percent); illumination=cachedMoon.substring(percent+1).toInt(); }
+    float cachedFull=cachedEventDays(3), cachedNew=cachedEventDays(4);
+    if(cachedFull>=0) nextFull=cachedFull;
+    if(cachedNew>=0) nextNew=cachedNew;
+  }
+  phase.toUpperCase();
+  center(phase,75,2,CREAM);
+  if(!clockSynchronized){
+    center("Awaiting NTP time synchronization",110,1,MUTED);
+    center("Keep the cabinet connected to Wi-Fi",128,1,MUTED);
+  } else {
+    center(String(illumination)+"% illuminated",105,1,GOLD);
+    text("NEXT FULL MOON",36,137,1,GOLD); text(lunarCountdown(nextFull),197,137,2,CREAM);
+    text("NEXT NEW MOON",36,171,1,GOLD); text(lunarCountdown(nextNew),197,171,2,CREAM);
+  }
+  footer();
+}
+void drawRitualCalendar(){
+  frame("RITUAL CALENDAR");
+  LunarInfo moon=lunarInfo();
+  float nextNew=moon.nextNew, nextFull=moon.nextFull;
+  if(cosmicCacheCurrent()){
+    float cachedNew=cachedEventDays(4), cachedFull=cachedEventDays(3);
+    if(cachedNew>=0) nextNew=cachedNew;
+    if(cachedFull>=0) nextFull=cachedFull;
+  }
+  center("The next lunar thresholds",52,1,MUTED);
+  if(!clockSynchronized){ center("The calendar opens when time arrives",104,1,CREAM); }
+  else {
+    text("NEW MOON",38,89,1,GOLD); text("in "+lunarCountdown(nextNew),169,89,2,CREAM);
+    text("FULL MOON",38,127,1,GOLD); text("in "+lunarCountdown(nextFull),169,127,2,CREAM);
+    center("A fresh intention at the new moon",162,1,MUTED);
+    center("A moment of reflection at the full moon",180,1,MUTED);
+  }
+  footer();
+}
+void drawCosmicWeather(){
+  frame("COSMIC WEATHER");
+  String header=cosmicLine(0);
+  if(header!="ASTRAL COSMIC WEATHER"){
+    center("The greater movements",52,1,MUTED);
+    center("No celestial cache has arrived yet.",99,1,CREAM);
+    center("Return after the cabinet reaches the internet.",121,1,MUTED);
+  } else {
+    center(cosmicLine(1),52,1,GOLD);
+    int y=78;
+    for(uint8_t i=5;i<10;i++){
+      String line=cosmicLine(i); if(!line.length()) continue;
+      textWrap(line,28,y,1,CREAM,264,2); y+=27;
+    }
+  }
+  footer();
+}
 void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22); reversed[i]=random(100)<25; } screen=three?SPREAD:DAILY; }
 void tap(int x,int y){
- if(screen==BOOT){ screen=internetAvailable(savedWifiSsid.length()?3500:0)?HOME:JOURNEY; uiRevision++; return; }
+ if(screen==BOOT){ internetReady=internetAvailable(savedWifiSsid.length()?3500:0); if(internetReady) requestClockSync(); screen=internetReady?HOME:JOURNEY; uiRevision++; return; }
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
  if(screen==ONLINE_SETUP){ if(x>=14 && x<46 && y>=16 && y<31){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen!=HOME && x>=14 && x<46 && y>=16 && y<31){ screen=HOME; uiRevision++; return; }
- if(screen==HOME){ if(x>=14 && x<46 && y>=16 && y<31)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=CABINET; }
+ if(screen==HOME){ if(x>=14 && x<46 && y>=16 && y<31)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=CABINET; }
+ else if(screen==LIVE_ASTRAL){ if(y>=72&&y<104){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=116&&y<148)screen=RITUAL_CALENDAR; else if(y>=160&&y<192){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
  else if(screen==MENU){ if(y>70&&y<115)newReading(false); else if(y>115&&y<160)newReading(true); else if(y>160&&x<160)screen=ZODIAC; else if(y>160)screen=CABINET; }
  else if(screen==DAILY){ if(x<45&&y<45)screen=HOME; else { reveal=1; if(y>180)newReading(false); } }
@@ -450,6 +656,7 @@ void setup(){
   Serial.println("ASTRAL: boot art complete");
 }
 void loop(){
+  maintainClock();
   if(portalActive) webServer.handleClient();
   if(touch.touched()){
     TS_Point p=touch.getPoint();
@@ -476,6 +683,10 @@ void loop(){
     else if(screen==SPREAD)drawSpread();
     else if(screen==CARD)drawCardDetail();
     else if(screen==CABINET)drawCabinet();
+    else if(screen==LIVE_ASTRAL)drawLiveAstral();
+    else if(screen==SKY_NOW)drawSkyNow();
+    else if(screen==RITUAL_CALENDAR)drawRitualCalendar();
+    else if(screen==COSMIC_WEATHER)drawCosmicWeather();
     last=screen;
     lastReveal=reveal;
     lastUiRevision=uiRevision;

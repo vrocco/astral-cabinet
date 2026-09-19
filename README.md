@@ -9,7 +9,9 @@ A portable, offline tarot and zodiac fortune-teller for the ESP32-2432S028 CYD (
 - Zodiac sign selection and profile panel
 - Daily one-card reading
 - Three-card Past / Present / Becoming spread
-- Local date and calculated moon phase
+- Offline tarot and zodiac experience, plus an online Live Astral doorway
+- NTP-synchronized local time, calculated moon phase, illumination, and next lunar thresholds
+- Daily cached planetary signs, retrograde states, and notable aspects when connected
 - Custom name and welcome message stored in ESP32 Preferences
 - Touch-driven card reveal with simple ritual animations
 - No Wi-Fi required
@@ -31,6 +33,7 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/journey.jpg
 /astral/doorways.jpg
 /astral/online.jpg
+/astral/setup.html
 /astral/00.jpg
 /astral/00_s.jpg
 /astral/00_r.jpg
@@ -51,6 +54,11 @@ genuine reversed draw. Twelve 60×60 illustrated zodiac medallions live under
 `/astral/zodiac/`. This keeps every asset small and decoded quickly while
 delivering an illustrated Art Nouveau deck; the line-motif renderer remains
 only as a safe fallback when the SD card is absent or unreadable.
+
+`setup.html` is the themed Wi-Fi configuration page served by the device's
+setup AP. It deliberately lives on the SD card rather than in firmware flash.
+If the card is unavailable, a minimal firmware-resident recovery form remains
+available so Wi-Fi onboarding still works.
 
 The firmware detects the card at boot. Its serial output states either
 `ASTRAL: SD art ready` or `ASTRAL: SD art unavailable; using vector fallback`.
@@ -77,6 +85,12 @@ pio run
 pio run -t upload
 pio device monitor
 ```
+
+This build uses the full 4 MB flash for one factory application instead of
+reserving a second OTA application slot. The device does not offer OTA firmware
+updates, so this makes room for its Wi-Fi/TLS client without reducing a feature
+that was available before. A normal PlatformIO upload writes the matching
+partition table and application together.
 
 No network credentials are needed to flash the device. The **Cabinet** screen stores a selectable guest profile in ESP32 Preferences; the profile editor and arbitrary typed names are planned for a later iteration.
 
@@ -127,7 +141,9 @@ the journey screen. It starts an open Wi-Fi access point named `astral` at
 1. Connect a phone or computer to Wi-Fi network `astral`.
 2. Open `http://192.168.4.1`.
 3. Choose a scanned nearby network (or type a hidden-network SSID), provide its
-   password, then select **Save and restart**.
+   password, choose a timezone, and optionally correct the latitude/longitude.
+   The defaults are Las Vegas, Nevada.
+4. Select **Save and restart**.
 
 The selected SSID and password are stored in ESP32 Preferences and used after
 reboot. On the next tap from the boot artwork, the firmware waits briefly for
@@ -137,11 +153,34 @@ four-portal menu directly, otherwise it returns to the Offline/Online screen.
 The setup access point is intentionally open so a new owner can connect without
 prior credentials. Perform setup away from untrusted nearby users.
 
+## Live Astral
+
+When internet reachability is confirmed at startup, the lower-left doorway is
+relabeled **Live Astral**. It opens three connected experiences:
+
+- **Sky Now** shows NTP-synchronized local time, current lunar phase and
+  illumination, plus the next new and full moon.
+- **Ritual Calendar** keeps the next lunar thresholds visible without turning
+  the cabinet into a generic calendar.
+- **Cosmic Weather** displays Mercury, Venus, Mars, and Jupiter signs and
+  direct/retrograde state, plus a major aspect when one is close.
+
+The device fetches a compact non-personal daily cache from this repository's
+`data/cosmic.txt`, stores it at `/astral/cosmic.txt`, and continues to display
+the last successful cache if the network goes away. GitHub Actions regenerates
+the cache daily from PyEphem via `.github/workflows/update-cosmic-feed.yml`.
+The feed has no API key and contains only public astronomical data. The ESP32
+uses an HTTPS request with certificate verification disabled solely for this
+non-sensitive display cache; Wi-Fi credentials are never sent to that endpoint.
+If strict certificate pinning is desired later, replace the raw GitHub endpoint
+with a stable hostname and its pinned CA certificate.
+
 ## Controls
 
 At startup, tap the illustrated Astral Cabinet entry screen, then choose a journey.
 **Offline** opens a four-portal reading menu. **Online** opens the Wi-Fi setup
-screen and starts the local configuration portal described above.
+screen and starts the local configuration portal described above. When online,
+the third doorway becomes **Live Astral**; when offline it remains **Zodiac**.
 The **BACK** button on the four-option menu returns to the journey choice screen.
 
 Tap a labeled doorway or control. A reversed draw is rendered upside down. On the tarot

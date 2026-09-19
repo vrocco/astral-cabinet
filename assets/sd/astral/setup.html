@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Astral Cabinet</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; background: #090d22; color: #fff0c9; font-family: Georgia, serif; }
+  main { max-width: 560px; margin: auto; padding: 28px 20px; }
+  .brand { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 4px auto 22px; }
+  .brand svg { width: 82px; height: 82px; filter: drop-shadow(0 0 10px #80692f); }
+  .wordmark { line-height: .86; text-align: left; letter-spacing: .19em; color: #e4bd63; }
+  .wordmark span { display: block; font-size: .78rem; }
+  .wordmark strong { display: block; font-size: 1.42rem; font-weight: normal; }
+  h1 { color: #e4bd63; letter-spacing: .08em; font-size: 1.65rem; text-align: center; }
+  p { line-height: 1.5; color: #dbd0b7; }
+  form { background: #171d45; border: 1px solid #d4aa4f; border-radius: 14px; padding: 20px; margin-top: 24px; }
+  label { display: block; margin: 14px 0 6px; color: #e4bd63; }
+  input, select, button { box-sizing: border-box; width: 100%; padding: 12px; border-radius: 8px; font: inherit; }
+  input, select { background: #090d22; color: #fff0c9; border: 1px solid #96783d; }
+  button { margin-top: 18px; background: #741c3b; color: #fff0c9; border: 1px solid #e4bd63; cursor: pointer; }
+  .note { font-size: .9rem; color: #c2b99f; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">
+    <svg viewBox="0 0 120 120" role="img" aria-label="Astral Cabinet mark">
+      <path d="M22 101V40L60 15 98 40V101M30 101V49L60 29 90 49V101" fill="none" stroke="#e4bd63" stroke-width="3"/>
+      <path d="M42 101V53H78V101M42 53Q60 36 78 53" fill="#171d45" stroke="#e4bd63" stroke-width="3"/>
+      <circle cx="60" cy="68" r="10" fill="none" stroke="#fff0c9" stroke-width="2"/>
+      <path d="M60 56v24M48 68h24M53 61l14 14M67 61L53 75" stroke="#e4bd63" stroke-width="2"/>
+      <circle cx="60" cy="15" r="5" fill="#fff0c9"/>
+      <path d="M14 101h92" stroke="#e4bd63" stroke-width="3"/>
+    </svg>
+    <div class="wordmark"><span>ASTRAL</span><strong>CABINET</strong></div>
+  </div>
+  <h1>CONNECT TO THE POWER OF THE UNIVERSE</h1>
+  <p>Choose the local Wi-Fi network that will carry the Astral Cabinet beyond its offline ritual.</p>
+  <form method="post" action="/save">
+    <label for="ssid">Nearby network</label>
+    <select id="ssid" name="ssid">{{NETWORK_OPTIONS}}</select>
+    <label for="manual">Or enter a network name</label>
+    <input id="manual" name="manual" maxlength="32" autocapitalize="none">
+    <label for="password">Wi-Fi password</label>
+    <input id="password" name="password" type="password" maxlength="63" autocomplete="current-password">
+    <label for="timezone">Timezone</label>
+    <select id="timezone" name="timezone">
+      {{TIMEZONE_OPTIONS}}
+    </select>
+    <label for="latitude">Latitude</label>
+    <input id="latitude" name="latitude" inputmode="decimal" value="{{LATITUDE}}">
+    <label for="longitude">Longitude</label>
+    <input id="longitude" name="longitude" inputmode="decimal" value="{{LONGITUDE}}">
+    <button type="submit">SAVE AND RESTART</button>
+  </form>
+  <p class="note">The device restarts after saving. Hidden networks can be entered manually. Timezone and coordinates power the live sky display.</p>
+</main>
+</body>
+</html>
