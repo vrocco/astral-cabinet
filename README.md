@@ -15,6 +15,7 @@ A portable, offline tarot and zodiac fortune-teller for the ESP32-2432S028 CYD (
 - Custom name and welcome message stored in ESP32 Preferences
 - Touch-driven card reveal with simple ritual animations
 - No Wi-Fi required
+- A Settings gear on the doorway screen with a confirmed reset of saved Wi-Fi
 
 ## Illustrated deck
 
@@ -146,14 +147,19 @@ the journey screen. It starts an open Wi-Fi access point named `astral` at
 2. Open `http://192.168.4.1`.
 3. Choose a scanned nearby network, or check **Enter my network name manually**
    for a hidden network. Provide its password and choose a timezone.
-4. Location is optional and blank by default. Enter a ZIP code or press
-   **Use phone location** only if you choose to provide it.
+4. Location is optional and blank by default. Enter a ZIP code only if you
+   choose to provide it.
 5. Select **Save and restart**.
 
 The selected SSID and password are stored in ESP32 Preferences and used after
 reboot. On the next tap from the boot artwork, the firmware waits briefly for
 the saved Wi-Fi and tests internet reachability; if reachable it opens the
 four-portal menu directly, otherwise it returns to the Offline/Online screen.
+
+To set up a different Wi-Fi network later, tap the small gold gear in the
+bottom-right of the main doorway screen. Choose **Delete saved Wi-Fi**, then
+confirm **Delete & reboot**. The device clears its saved network and online
+setup details, restarts, and returns to first-time onboarding.
 
 The setup access point is intentionally open so a new owner can connect without
 prior credentials. Perform setup away from untrusted nearby users.
