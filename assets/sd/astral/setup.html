@@ -63,7 +63,7 @@
 
     <fieldset>
       <legend>Location (optional)</legend>
-      <p class="fine">Leave this blank to keep location private. It is not needed for Wi-Fi setup or the basic moon display.</p>
+      <p class="fine">Location is optional. It will support future local sunrise, sunset, moonrise, and ritual timing; it is not needed for Wi-Fi setup, the basic moon display, or Cosmic Weather.</p>
       <label for="zipcode">ZIP code</label>
       <input id="zipcode" name="zipcode" inputmode="numeric" autocomplete="postal-code" maxlength="10" value="{{ZIPCODE}}">
       <button id="phone-location" class="secondary" type="button">USE PHONE LOCATION</button>
@@ -87,6 +87,7 @@
   });
   document.getElementById('phone-location').addEventListener('click', () => {
     const status = document.getElementById('location-status');
+    if (!window.isSecureContext) { status.textContent = 'Safari requires HTTPS before it can offer phone location. This local setup page uses HTTP, so Safari will not show a permission prompt. Use ZIP or leave location blank.'; return; }
     if (!navigator.geolocation) { status.textContent = 'Phone location is not available in this browser.'; return; }
     status.textContent = 'Requesting your phone location…';
     navigator.geolocation.getCurrentPosition((position) => {
