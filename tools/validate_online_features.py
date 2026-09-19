@@ -18,7 +18,7 @@ required_source = (
     'refreshCosmicCache()',
     'drawSdArt("/astral/reading_menu.jpg",0,0)',
     'x>=0 && x<65 && y>=0 && y<50',
-    'settingsGear(300,225)',
+    'settingsGear(270,225)',
     'DELETE SAVED WI-FI',
     'WiFi.disconnect(true,true)',
     'netPrefs.clear()',

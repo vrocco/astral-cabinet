@@ -376,8 +376,8 @@ void footer(){ text("THE ASTRAL CABINET",92,222,1,MUTED); }
 void overlayCenter(const String&s,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c); tft.setTextSize(size); tft.setCursor((W-tft.textWidth(s))/2,y); tft.print(s); }
 void overlayAt(const String&s,int cx,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c); tft.setTextSize(size); tft.setCursor(cx-tft.textWidth(s)/2,y); tft.print(s); }
 void settingsGear(int cx,int cy){
-  for(int i=0;i<8;i++){ float a=i*0.785398f; int x1=cx+cos(a)*7,y1=cy+sin(a)*7,x2=cx+cos(a)*10,y2=cy+sin(a)*10; tft.drawLine(x1,y1,x2,y2,GOLD); }
-  tft.drawCircle(cx,cy,7,GOLD); tft.drawCircle(cx,cy,3,GOLD); tft.fillCircle(cx,cy,1,GOLD);
+  for(int i=0;i<8;i++){ float a=i*0.785398f; int x1=cx+cos(a)*7,y1=cy+sin(a)*7,x2=cx+cos(a)*10,y2=cy+sin(a)*10; tft.drawLine(x1,y1,x2,y2,BLACK); }
+  tft.drawCircle(cx,cy,7,BLACK); tft.drawCircle(cx,cy,3,BLACK); tft.fillCircle(cx,cy,1,BLACK);
 }
 void drawBoot(){
   if(!drawSdArt("/astral/boot.jpg",0,0)){
@@ -420,7 +420,7 @@ void drawOnlineSetup(){
 void drawHome(){
   if(!drawSdArt("/astral/doorways.jpg",0,0)){
     frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"LIVE ASTRAL"); center("Touch a doorway to begin",202,1,MUTED);
-    settingsGear(300,225);
+    settingsGear(270,225);
     return;
   }
   button(14,16,32,15,"BACK",NAVY);
@@ -431,7 +431,7 @@ void drawHome(){
   doorPlaque(190,105,100,"TAROT READING",BURG);
   doorPlaque(35,188,90,"ZODIAC");
   doorPlaque(185,188,110,"LIVE ASTRAL",BURG);
-  settingsGear(300,225);
+  settingsGear(270,225);
 }
 void drawSettings(){
   frame("SETTINGS");
@@ -441,7 +441,6 @@ void drawSettings(){
   text("Remove the saved Wi-Fi network and",28,108,1,CREAM);
   text("return to first-time setup.",28,121,1,CREAM);
   button(28,144,264,32,"DELETE SAVED WI-FI",BURG);
-  text("More settings will appear here later.",28,199,1,MUTED);
 }
 void drawConfirmNetworkDelete(){
   frame("DELETE SAVED WI-FI?");
@@ -648,7 +647,7 @@ void tap(int x,int y){
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
  if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:(screen==CONFIRM_NETWORK_DELETE?SETTINGS:HOME); uiRevision++; return; }
- if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=278&&x<320&&y>=214&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:JOURNEY; }
+ if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=245&&x<295&&y>=214&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:JOURNEY; }
  else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=144&&y<176)screen=CONFIRM_NETWORK_DELETE; }
  else if(screen==CONFIRM_NETWORK_DELETE){
    if(x>=28&&x<146&&y>=165&&y<195)screen=SETTINGS;
