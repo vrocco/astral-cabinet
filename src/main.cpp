@@ -437,7 +437,14 @@ void drawZodiacTile(uint8_t id,int x,int y){
   tft.drawRoundRect(x-2,y-2,64,64,6,id==signIndex?CREAM:GOLD);
 }
 void drawZodiac(){ frame("CHOOSE YOUR SIGN"); for(int i=0;i<12;i++){ int col=i%4,row=i/4; drawZodiacTile(i,10+col*80,45+row*60); } }
-void drawMenu(){ frame("SELECT A READING"); center(String(signs[signIndex].name)+"  /  "+signs[signIndex].element,53,1,GOLD); button(30,75,260,34,"ONE-CARD DAILY OMEN"); button(30,120,260,34,"PAST / PRESENT / BECOMING"); button(30,165,260,30,"CHANGE SIGN",NAVY); footer(); }
+void drawMenu(){
+  if(!drawSdArt("/astral/reading_menu.jpg",0,0)){ frame("SELECT A READING"); }
+  button(14,16,32,15,"BACK",NAVY);
+  overlayAt(String(signs[signIndex].name),160,48,1,CREAM);
+  overlayAt("ONE-CARD",60,146,1,CREAM); overlayAt("DAILY OMEN",60,160,1,CREAM);
+  overlayAt("THREE-CARD",258,146,1,CREAM); overlayAt("READING",258,160,1,CREAM);
+  overlayAt("CHANGE SIGN",160,175,1,CREAM);
+}
 String moonPhase(){ return String(lunarInfo().phase); }
 
 void star(int cx,int cy,int r,uint16_t color){
@@ -591,7 +598,7 @@ void drawRitualCalendar(){
   else {
     overlayAt("NEW MOON",160,88,1,GOLD); overlayAt(lunarCountdown(nextNew),160,103,1,CREAM);
     overlayAt("FULL MOON",160,126,1,GOLD); overlayAt(lunarCountdown(nextFull),160,141,1,CREAM);
-    overlayAt("Set an intention · reflect in fullness",160,166,1,MUTED);
+
   }
 }
 void drawCosmicWeather(){
@@ -616,12 +623,12 @@ void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22)
 void tap(int x,int y){
  if(screen==BOOT){ internetReady=internetAvailable(savedWifiSsid.length()?3500:0); if(internetReady) requestClockSync(); screen=internetReady?HOME:JOURNEY; uiRevision++; return; }
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
- if(screen==ONLINE_SETUP){ if(x>=14 && x<46 && y>=16 && y<31){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
- if(screen!=HOME && x>=14 && x<46 && y>=16 && y<31){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:HOME; uiRevision++; return; }
- if(screen==HOME){ if(x>=14 && x<46 && y>=16 && y<31)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:JOURNEY; }
+ if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
+ if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:HOME; uiRevision++; return; }
+ if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:JOURNEY; }
  else if(screen==LIVE_ASTRAL){ if(y>=130&&y<205&&x<105){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=130&&y<205&&x<215)screen=RITUAL_CALENDAR; else if(y>=130&&y<205){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
- else if(screen==MENU){ if(y>70&&y<115)newReading(false); else if(y>115&&y<160)newReading(true); else if(y>160)screen=ZODIAC; }
+ else if(screen==MENU){ if(x>=10&&x<112&&y>=130&&y<180)newReading(false); else if(x>=208&&x<310&&y>=130&&y<180)newReading(true); else if(x>=110&&x<210&&y>=160&&y<200)screen=ZODIAC; }
  else if(screen==DAILY){ if(x<45&&y<45)screen=HOME; else { reveal=1; if(y>180)newReading(false); } }
  else if(screen==SPREAD){ if(x<45&&y<45)screen=HOME; else if(reveal<3)reveal++; else if(y>=70&&y<190&&x>=20&&x<298){ detailCard=constrain((x-20)/100,0,2); screen=CARD; } else if(y>195)newReading(true); }
  else if(screen==CARD){ screen=SPREAD; }
