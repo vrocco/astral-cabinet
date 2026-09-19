@@ -34,6 +34,10 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/doorways.jpg
 /astral/online.jpg
 /astral/setup.html
+/astral/live_astral.jpg
+/astral/sky_now.jpg
+/astral/ritual_calendar.jpg
+/astral/cosmic_weather.jpg
 /astral/00.jpg
 /astral/00_s.jpg
 /astral/00_r.jpg
@@ -140,10 +144,11 @@ the journey screen. It starts an open Wi-Fi access point named `astral` at
 
 1. Connect a phone or computer to Wi-Fi network `astral`.
 2. Open `http://192.168.4.1`.
-3. Choose a scanned nearby network (or type a hidden-network SSID), provide its
-   password, choose a timezone, and optionally correct the latitude/longitude.
-   The defaults are Las Vegas, Nevada.
-4. Select **Save and restart**.
+3. Choose a scanned nearby network, or check **Enter my network name manually**
+   for a hidden network. Provide its password and choose a timezone.
+4. Location is optional and blank by default. Enter a ZIP code or press
+   **Use phone location** only if you choose to provide it.
+5. Select **Save and restart**.
 
 The selected SSID and password are stored in ESP32 Preferences and used after
 reboot. On the next tap from the boot artwork, the firmware waits briefly for
@@ -155,8 +160,9 @@ prior credentials. Perform setup away from untrusted nearby users.
 
 ## Live Astral
 
-When internet reachability is confirmed at startup, the lower-left doorway is
-relabeled **Live Astral**. It opens three connected experiences:
+The main menu always keeps **Zodiac**. The fourth doorway is **Live Astral**;
+offline it returns to the journey screen, while online it opens three connected
+experiences illustrated with their own Art Nouveau backgrounds:
 
 - **Sky Now** shows NTP-synchronized local time, current lunar phase and
   illumination, plus the next new and full moon.
@@ -179,8 +185,8 @@ with a stable hostname and its pinned CA certificate.
 
 At startup, tap the illustrated Astral Cabinet entry screen, then choose a journey.
 **Offline** opens a four-portal reading menu. **Online** opens the Wi-Fi setup
-screen and starts the local configuration portal described above. When online,
-the third doorway becomes **Live Astral**; when offline it remains **Zodiac**.
+screen and starts the local configuration portal described above. The main menu
+keeps Zodiac and uses its fourth doorway for Live Astral.
 The **BACK** button on the four-option menu returns to the journey choice screen.
 
 Tap a labeled doorway or control. A reversed draw is rendered upside down. On the tarot

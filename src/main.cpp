@@ -24,8 +24,10 @@ bool webRoutesReady = false;
 String savedWifiSsid;
 String savedWifiPassword;
 String savedTimezone="PST8PDT,M3.2.0,M11.1.0";
-float skyLatitude=36.1699f;
-float skyLongitude=-115.1398f;
+String savedZipcode;
+float skyLatitude=0.0f;
+float skyLongitude=0.0f;
+bool skyLocationSet=false;
 bool clockSynchronized=false;
 bool internetReady=false;
 uint32_t lastClockRequest=0;
@@ -166,8 +168,9 @@ String setupPortalPage(){
   if(!page.length()) page=F("<!doctype html><html><body><h1>Astral Cabinet</h1><form method=\"post\" action=\"/save\"><label>Network <select name=\"ssid\">{{NETWORK_OPTIONS}}</select></label><label>Manual network <input name=\"manual\"></label><label>Password <input name=\"password\" type=\"password\"></label><button>Save and restart</button></form></body></html>");
   page.replace("{{NETWORK_OPTIONS}}",nearbyNetworkOptions());
   page.replace("{{TIMEZONE_OPTIONS}}",timezoneOptions());
-  page.replace("{{LATITUDE}}",String(skyLatitude,4));
-  page.replace("{{LONGITUDE}}",String(skyLongitude,4));
+  page.replace("{{ZIPCODE}}",htmlEscape(savedZipcode));
+  page.replace("{{LATITUDE}}",skyLocationSet?String(skyLatitude,4):String());
+  page.replace("{{LONGITUDE}}",skyLocationSet?String(skyLongitude,4):String());
   return page;
 }
 
@@ -178,22 +181,28 @@ void handleSaveNetwork(){
   if(!ssid.length()) ssid=webServer.arg("ssid");
   String password=webServer.arg("password");
   String timezone=webServer.arg("timezone");
+  String zipcode=webServer.arg("zipcode"); zipcode.trim();
   bool timezoneKnown=!timezone.length();
   for(const auto& zone:timezones) if(timezone==zone.value) timezoneKnown=true;
-  float latitude=skyLatitude, longitude=skyLongitude;
-  if(webServer.arg("latitude").length()) latitude=webServer.arg("latitude").toFloat();
-  if(webServer.arg("longitude").length()) longitude=webServer.arg("longitude").toFloat();
-  if(!ssid.length() || ssid.length()>32 || password.length()>63 || !timezoneKnown || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180){
+  String latitudeArg=webServer.arg("latitude"), longitudeArg=webServer.arg("longitude");
+  bool hasPhoneLocation=latitudeArg.length() && longitudeArg.length();
+  float latitude=hasPhoneLocation?latitudeArg.toFloat():0.0f;
+  float longitude=hasPhoneLocation?longitudeArg.toFloat():0.0f;
+  if(!ssid.length() || ssid.length()>32 || password.length()>63 || zipcode.length()>10 || !timezoneKnown || (latitudeArg.length()!=longitudeArg.length()) || (hasPhoneLocation && (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180))){
     webServer.send(400,"text/html",F("<html><body><h2>Network details are incomplete.</h2><p><a href=\"/\">Return to setup</a></p></body></html>"));
     return;
   }
   if(timezone.length()) savedTimezone=timezone;
-  skyLatitude=latitude; skyLongitude=longitude;
+  savedZipcode=zipcode;
+  skyLocationSet=hasPhoneLocation;
+  if(skyLocationSet){ skyLatitude=latitude; skyLongitude=longitude; }
   netPrefs.putString("ssid",ssid);
   netPrefs.putString("password",password);
   netPrefs.putString("timezone",savedTimezone);
-  netPrefs.putFloat("latitude",skyLatitude);
-  netPrefs.putFloat("longitude",skyLongitude);
+  netPrefs.putString("zipcode",savedZipcode);
+  netPrefs.putBool("locationSet",skyLocationSet);
+  if(skyLocationSet){ netPrefs.putFloat("latitude",skyLatitude); netPrefs.putFloat("longitude",skyLongitude); }
+  else { netPrefs.remove("latitude"); netPrefs.remove("longitude"); }
   webServer.send(200,"text/html",F("<html><body><h2>Saved.</h2><p>The Astral Cabinet is restarting to join the selected network.</p></body></html>"));
   delay(750);
   ESP.restart();
@@ -232,8 +241,9 @@ void connectSavedWifi(){
   savedWifiSsid=netPrefs.getString("ssid","");
   savedWifiPassword=netPrefs.getString("password","");
   savedTimezone=netPrefs.getString("timezone",savedTimezone);
-  skyLatitude=netPrefs.getFloat("latitude",skyLatitude);
-  skyLongitude=netPrefs.getFloat("longitude",skyLongitude);
+  savedZipcode=netPrefs.getString("zipcode","");
+  skyLocationSet=netPrefs.getBool("locationSet",false);
+  if(skyLocationSet){ skyLatitude=netPrefs.getFloat("latitude",0.0f); skyLongitude=netPrefs.getFloat("longitude",0.0f); }
   if(!savedWifiSsid.length()) return;
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
@@ -404,7 +414,7 @@ void drawOnlineSetup(){
 }
 void drawHome(){
   if(!drawSdArt("/astral/doorways.jpg",0,0)){
-    frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("Welcome, "+guestName,54,1,MUTED); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"CABINET"); center("Touch a doorway to begin",202,1,MUTED);
+    frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,"LIVE ASTRAL"); center("Touch a doorway to begin",202,1,MUTED);
     return;
   }
   button(14,16,32,15,"BACK",NAVY);
@@ -413,8 +423,8 @@ void drawHome(){
   tft.setCursor((W-tft.textWidth(prompt))/2,38); tft.print(prompt);
   doorPlaque(30,105,100,"DAILY OMEN");
   doorPlaque(190,105,100,"TAROT READING",BURG);
-  doorPlaque(35,188,90,internetReady?"LIVE ASTRAL":"ZODIAC");
-  doorPlaque(195,188,90,"CABINET",BURG);
+  doorPlaque(35,188,90,"ZODIAC");
+  doorPlaque(185,188,110,"LIVE ASTRAL",BURG);
 }
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
 void drawZodiacTile(uint8_t id,int x,int y){
@@ -426,7 +436,7 @@ void drawZodiacTile(uint8_t id,int x,int y){
   tft.drawRoundRect(x-2,y-2,64,64,6,id==signIndex?CREAM:GOLD);
 }
 void drawZodiac(){ frame("CHOOSE YOUR SIGN"); for(int i=0;i<12;i++){ int col=i%4,row=i/4; drawZodiacTile(i,10+col*80,45+row*60); } }
-void drawMenu(){ frame("SELECT A READING"); center(String(signs[signIndex].name)+"  /  "+signs[signIndex].element,53,1,GOLD); button(30,75,260,34,"ONE-CARD DAILY OMEN"); button(30,120,260,34,"PAST / PRESENT / BECOMING"); button(30,165,125,30,"CHANGE SIGN",NAVY); button(165,165,125,30,"CABINET",NAVY); footer(); }
+void drawMenu(){ frame("SELECT A READING"); center(String(signs[signIndex].name)+"  /  "+signs[signIndex].element,53,1,GOLD); button(30,75,260,34,"ONE-CARD DAILY OMEN"); button(30,120,260,34,"PAST / PRESENT / BECOMING"); button(30,165,260,30,"CHANGE SIGN",NAVY); footer(); }
 String moonPhase(){ return String(lunarInfo().phase); }
 
 void star(int cx,int cy,int r,uint16_t color){
@@ -533,18 +543,18 @@ void drawCardDetail(){
 }
 void drawCabinet(){ frame("THE CABINET"); center("A little archive of the self",50,1,MUTED); text("GUEST",28,76,1,GOLD); text(guestName,110,76,2,CREAM); button(28,98,82,25,"GUEST"); button(119,98,82,25,"MOON CHILD",NAVY); button(210,98,82,25,"STAR SEEKER",NAVY); text("SIGN",28,136,1,GOLD); text(signs[signIndex].name,110,136,2,CREAM); text("ELEMENT",28,164,1,GOLD); text(signs[signIndex].element,110,164,1,CREAM); text("MOON",28,184,1,GOLD); text(moonPhase(),110,184,1,CREAM); button(20,195,280,28,"RETURN TO RITUAL",BURG); }
 void drawLiveAstral(){
-  frame("LIVE ASTRAL");
-  center("The cabinet is listening to the sky",52,1,MUTED);
-  button(30,72,260,32,"SKY NOW");
-  button(30,116,260,32,"RITUAL CALENDAR",NAVY);
-  button(30,160,260,32,"COSMIC WEATHER",NAVY);
-  center(clockSynchronized?"Time is synchronized by the stars":"Synchronizing celestial time...",206,1,GOLD);
-  footer();
+  if(!drawSdArt("/astral/live_astral.jpg",0,0)){ frame("LIVE ASTRAL"); }
+  button(14,16,32,15,"BACK",NAVY);
+  overlayCenter("LIVE ASTRAL",46,2,GOLD);
+  doorPlaque(34,126,252,"SKY NOW");
+  doorPlaque(34,158,252,"RITUAL CALENDAR",BURG);
+  doorPlaque(34,190,252,"COSMIC WEATHER",NAVY);
 }
 void drawSkyNow(){
-  frame("SKY NOW");
+  if(!drawSdArt("/astral/sky_now.jpg",0,0)){ frame("SKY NOW"); }
+  button(14,16,32,15,"BACK",NAVY);
   LunarInfo moon=lunarInfo();
-  center(localDateTime(),52,1,GOLD);
+  text(localDateTime(),138,49,1,GOLD);
   String phase=moon.phase; int illumination=moon.illumination; float nextFull=moon.nextFull, nextNew=moon.nextNew;
   if(cosmicCacheCurrent()){
     String cachedMoon=cosmicLine(2); cachedMoon.remove(0,6);
@@ -555,19 +565,20 @@ void drawSkyNow(){
     if(cachedNew>=0) nextNew=cachedNew;
   }
   phase.toUpperCase();
-  center(phase,75,2,CREAM);
+  text(phase,138,72,1,CREAM);
   if(!clockSynchronized){
-    center("Awaiting NTP time synchronization",110,1,MUTED);
-    center("Keep the cabinet connected to Wi-Fi",128,1,MUTED);
+    text("Awaiting time signal",138,105,1,MUTED);
+    text("Keep Wi-Fi connected",138,121,1,MUTED);
   } else {
-    center(String(illumination)+"% illuminated",105,1,GOLD);
-    text("NEXT FULL MOON",36,137,1,GOLD); text(lunarCountdown(nextFull),197,137,2,CREAM);
-    text("NEXT NEW MOON",36,171,1,GOLD); text(lunarCountdown(nextNew),197,171,2,CREAM);
+    text(String(illumination)+"% illuminated",138,98,1,GOLD);
+    text("NEXT FULL",138,133,1,GOLD); text(lunarCountdown(nextFull),226,133,1,CREAM);
+    text("NEXT NEW",138,160,1,GOLD); text(lunarCountdown(nextNew),226,160,1,CREAM);
   }
   footer();
 }
 void drawRitualCalendar(){
-  frame("RITUAL CALENDAR");
+  if(!drawSdArt("/astral/ritual_calendar.jpg",0,0)){ frame("RITUAL CALENDAR"); }
+  button(14,16,32,15,"BACK",NAVY);
   LunarInfo moon=lunarInfo();
   float nextNew=moon.nextNew, nextFull=moon.nextFull;
   if(cosmicCacheCurrent()){
@@ -575,29 +586,31 @@ void drawRitualCalendar(){
     if(cachedNew>=0) nextNew=cachedNew;
     if(cachedFull>=0) nextFull=cachedFull;
   }
-  center("The next lunar thresholds",52,1,MUTED);
-  if(!clockSynchronized){ center("The calendar opens when time arrives",104,1,CREAM); }
+  overlayCenter("RITUAL CALENDAR",46,1,GOLD);
+  if(!clockSynchronized){ overlayCenter("The calendar opens when time arrives",112,1,CREAM); }
   else {
-    text("NEW MOON",38,89,1,GOLD); text("in "+lunarCountdown(nextNew),169,89,2,CREAM);
-    text("FULL MOON",38,127,1,GOLD); text("in "+lunarCountdown(nextFull),169,127,2,CREAM);
-    center("A fresh intention at the new moon",162,1,MUTED);
-    center("A moment of reflection at the full moon",180,1,MUTED);
+    overlayCenter("NEW MOON  ·  "+lunarCountdown(nextNew),96,1,CREAM);
+    overlayCenter("FULL MOON  ·  "+lunarCountdown(nextFull),124,1,CREAM);
+    overlayCenter("A fresh intention at the new moon",154,1,MUTED);
+    overlayCenter("A moment of reflection at the full moon",172,1,MUTED);
   }
   footer();
 }
 void drawCosmicWeather(){
-  frame("COSMIC WEATHER");
+  if(!drawSdArt("/astral/cosmic_weather.jpg",0,0)){ frame("COSMIC WEATHER"); }
+  button(14,16,32,15,"BACK",NAVY);
   String header=cosmicLine(0);
   if(header!="ASTRAL COSMIC WEATHER"){
-    center("The greater movements",52,1,MUTED);
-    center("No celestial cache has arrived yet.",99,1,CREAM);
-    center("Return after the cabinet reaches the internet.",121,1,MUTED);
+    text("COSMIC WEATHER",112,52,1,GOLD);
+    text("No celestial cache yet.",112,103,1,CREAM);
+    text("Return after connecting.",112,121,1,MUTED);
   } else {
-    center(cosmicLine(1),52,1,GOLD);
-    int y=78;
+    text("COSMIC WEATHER",112,52,1,GOLD);
+    text(cosmicLine(1),112,70,1,MUTED);
+    int y=94;
     for(uint8_t i=5;i<10;i++){
       String line=cosmicLine(i); if(!line.length()) continue;
-      textWrap(line,28,y,1,CREAM,264,2); y+=27;
+      textWrap(line,112,y,1,CREAM,184,2); y+=25;
     }
   }
   footer();
@@ -608,10 +621,10 @@ void tap(int x,int y){
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
  if(screen==ONLINE_SETUP){ if(x>=14 && x<46 && y>=16 && y<31){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen!=HOME && x>=14 && x<46 && y>=16 && y<31){ screen=HOME; uiRevision++; return; }
- if(screen==HOME){ if(x>=14 && x<46 && y>=16 && y<31)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=CABINET; }
- else if(screen==LIVE_ASTRAL){ if(y>=72&&y<104){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=116&&y<148)screen=RITUAL_CALENDAR; else if(y>=160&&y<192){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
+ if(screen==HOME){ if(x>=14 && x<46 && y>=16 && y<31)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:JOURNEY; }
+ else if(screen==LIVE_ASTRAL){ if(y>=126&&y<148){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=158&&y<180)screen=RITUAL_CALENDAR; else if(y>=190&&y<212){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
- else if(screen==MENU){ if(y>70&&y<115)newReading(false); else if(y>115&&y<160)newReading(true); else if(y>160&&x<160)screen=ZODIAC; else if(y>160)screen=CABINET; }
+ else if(screen==MENU){ if(y>70&&y<115)newReading(false); else if(y>115&&y<160)newReading(true); else if(y>160)screen=ZODIAC; }
  else if(screen==DAILY){ if(x<45&&y<45)screen=HOME; else { reveal=1; if(y>180)newReading(false); } }
  else if(screen==SPREAD){ if(x<45&&y<45)screen=HOME; else if(reveal<3)reveal++; else if(y>=70&&y<190&&x>=20&&x<298){ detailCard=constrain((x-20)/100,0,2); screen=CARD; } else if(y>195)newReading(true); }
  else if(screen==CARD){ screen=SPREAD; }

@@ -20,7 +20,15 @@
   input, select, button { box-sizing: border-box; width: 100%; padding: 12px; border-radius: 8px; font: inherit; }
   input, select { background: #090d22; color: #fff0c9; border: 1px solid #96783d; }
   button { margin-top: 18px; background: #741c3b; color: #fff0c9; border: 1px solid #e4bd63; cursor: pointer; }
-  .note { font-size: .9rem; color: #c2b99f; }
+  button.secondary { margin-top: 0; background: #10193d; }
+  .check { display: flex; align-items: center; gap: 9px; margin: 16px 0 0; color: #fff0c9; }
+  .check input { width: auto; accent-color: #d4aa4f; }
+  .manual-fields { display: none; }
+  .manual-fields.open { display: block; }
+  fieldset { margin: 20px 0 0; padding: 4px 14px 15px; border: 1px solid #96783d; border-radius: 9px; }
+  legend { color: #e4bd63; padding: 0 6px; }
+  .fine, .note, #location-status { font-size: .9rem; color: #c2b99f; }
+  #location-status { display: block; min-height: 1.3em; margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -41,21 +49,54 @@
   <form method="post" action="/save">
     <label for="ssid">Nearby network</label>
     <select id="ssid" name="ssid">{{NETWORK_OPTIONS}}</select>
-    <label for="manual">Or enter a network name</label>
-    <input id="manual" name="manual" maxlength="32" autocapitalize="none">
+
+    <label class="check" for="manual-toggle"><input id="manual-toggle" type="checkbox"> Enter my network name manually</label>
+    <div id="manual-fields" class="manual-fields">
+      <label for="manual">Network name</label>
+      <input id="manual" name="manual" maxlength="32" autocapitalize="none" disabled>
+    </div>
+
     <label for="password">Wi-Fi password</label>
     <input id="password" name="password" type="password" maxlength="63" autocomplete="current-password">
     <label for="timezone">Timezone</label>
-    <select id="timezone" name="timezone">
-      {{TIMEZONE_OPTIONS}}
-    </select>
-    <label for="latitude">Latitude</label>
-    <input id="latitude" name="latitude" inputmode="decimal" value="{{LATITUDE}}">
-    <label for="longitude">Longitude</label>
-    <input id="longitude" name="longitude" inputmode="decimal" value="{{LONGITUDE}}">
+    <select id="timezone" name="timezone">{{TIMEZONE_OPTIONS}}</select>
+
+    <fieldset>
+      <legend>Location (optional)</legend>
+      <p class="fine">Leave this blank to keep location private. It is not needed for Wi-Fi setup or the basic moon display.</p>
+      <label for="zipcode">ZIP code</label>
+      <input id="zipcode" name="zipcode" inputmode="numeric" autocomplete="postal-code" maxlength="10" value="{{ZIPCODE}}">
+      <button id="phone-location" class="secondary" type="button">USE PHONE LOCATION</button>
+      <span id="location-status" aria-live="polite"></span>
+      <input id="latitude" name="latitude" type="hidden" value="{{LATITUDE}}">
+      <input id="longitude" name="longitude" type="hidden" value="{{LONGITUDE}}">
+    </fieldset>
+
     <button type="submit">SAVE AND RESTART</button>
   </form>
-  <p class="note">The device restarts after saving. Hidden networks can be entered manually. Timezone and coordinates power the live sky display.</p>
+  <p class="note">The device restarts after saving. Hidden networks can be entered manually. Phone location is requested only if you press the button.</p>
 </main>
+<script>
+  const toggle = document.getElementById('manual-toggle');
+  const manual = document.getElementById('manual');
+  const manualFields = document.getElementById('manual-fields');
+  toggle.addEventListener('change', () => {
+    manual.disabled = !toggle.checked;
+    manualFields.classList.toggle('open', toggle.checked);
+    if (toggle.checked) manual.focus();
+  });
+  document.getElementById('phone-location').addEventListener('click', () => {
+    const status = document.getElementById('location-status');
+    if (!navigator.geolocation) { status.textContent = 'Phone location is not available in this browser.'; return; }
+    status.textContent = 'Requesting your phone location…';
+    navigator.geolocation.getCurrentPosition((position) => {
+      document.getElementById('latitude').value = position.coords.latitude.toFixed(5);
+      document.getElementById('longitude').value = position.coords.longitude.toFixed(5);
+      status.textContent = 'Phone location added to this device setup.';
+    }, () => {
+      status.textContent = 'Location was unavailable or declined. You can leave it blank.';
+    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+  });
+</script>
 </body>
 </html>
