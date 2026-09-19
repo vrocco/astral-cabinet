@@ -30,6 +30,7 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/boot.jpg
 /astral/journey.jpg
 /astral/doorways.jpg
+/astral/online.jpg
 /astral/00.jpg
 /astral/00_s.jpg
 /astral/00_r.jpg
@@ -43,8 +44,8 @@ top-level `astral/` directory, plus a SHA-256 file for integrity checking.
 
 `boot.jpg` is a full-screen 320×240 illustrated entry screen; `journey.jpg`
 is the full-screen Offline/Online choice screen; and `doorways.jpg` is the
-four-portal Offline menu. Full card images are 120×160 JPEGs and spread
-thumbnails are 78×104 JPEGs. Every
+four-portal Offline menu. `online.jpg` is the Wi-Fi setup screen. Full card
+images are 120×160 JPEGs and spread thumbnails are 78×104 JPEGs. Every
 Major Arcana card also has pre-rotated 180° full and thumbnail assets for a
 genuine reversed draw. Twelve 60×60 illustrated zodiac medallions live under
 `/astral/zodiac/`. This keeps every asset small and decoded quickly while
@@ -77,7 +78,7 @@ pio run -t upload
 pio device monitor
 ```
 
-No network credentials are needed. The **Cabinet** screen stores a selectable guest profile in ESP32 Preferences; the profile editor and arbitrary typed names are planned for a later iteration.
+No network credentials are needed to flash the device. The **Cabinet** screen stores a selectable guest profile in ESP32 Preferences; the profile editor and arbitrary typed names are planned for a later iteration.
 
 To regenerate CYD-ready JPEGs after replacing the high-resolution source art, put
 files named `00.png` through `21.png` and `card_back.png` in a directory, then
@@ -111,11 +112,36 @@ The same tool can prepare a replacement doorway menu background:
 python3 tools/prepare_boot_art.py /path/to/doorway-art.png --output assets/sd/astral/doorways.jpg
 ```
 
+For the online setup background:
+
+```sh
+python3 tools/prepare_boot_art.py /path/to/online-art.png --output assets/sd/astral/online.jpg
+```
+
+## Online setup
+
+If the device does not have a working internet connection, choose **Online** on
+the journey screen. It starts an open Wi-Fi access point named `astral` at
+`192.168.4.1` and shows the same instructions on the display.
+
+1. Connect a phone or computer to Wi-Fi network `astral`.
+2. Open `http://192.168.4.1`.
+3. Choose a scanned nearby network (or type a hidden-network SSID), provide its
+   password, then select **Save and restart**.
+
+The selected SSID and password are stored in ESP32 Preferences and used after
+reboot. On the next tap from the boot artwork, the firmware waits briefly for
+the saved Wi-Fi and tests internet reachability; if reachable it opens the
+four-portal menu directly, otherwise it returns to the Offline/Online screen.
+
+The setup access point is intentionally open so a new owner can connect without
+prior credentials. Perform setup away from untrusted nearby users.
+
 ## Controls
 
 At startup, tap the illustrated Astral Cabinet entry screen, then choose a journey.
-**Offline** opens a four-portal reading menu. **Online** is intentionally present
-but inactive until its connected experience is implemented.
+**Offline** opens a four-portal reading menu. **Online** opens the Wi-Fi setup
+screen and starts the local configuration portal described above.
 The **BACK** button on the four-option menu returns to the journey choice screen.
 
 Tap a labeled doorway or control. A reversed draw is rendered upside down. On the tarot

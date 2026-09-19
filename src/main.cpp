@@ -6,13 +6,21 @@
 #include <time.h>
 #include <SD.h>
 #include <TJpg_Decoder.h>
+#include <WiFi.h>
+#include <WebServer.h>
 
 TFT_eSPI tft(240, 320);
 SPIClass touchSPI = SPIClass(VSPI);
 SPIClass sdSPI = SPIClass(HSPI);
 XPT2046_Touchscreen touch(33, 36);
 Preferences prefs;
+Preferences netPrefs;
+WebServer webServer(80);
 bool sdArtReady = false;
+bool portalActive = false;
+bool webRoutesReady = false;
+String savedWifiSsid;
+String savedWifiPassword;
 
 constexpr int W=320, H=240;
 constexpr int TOUCH_X_MIN=200, TOUCH_X_MAX=3900, TOUCH_Y_MIN=200, TOUCH_Y_MAX=3900;
@@ -51,7 +59,7 @@ const Card cards[] = {
  {"The World","completion","A cycle has gathered its meaning. Honor how far you have come before opening the next door.","Something is almost complete, but one loose thread deserves your attention."}
 };
 
-enum Screen { BOOT, JOURNEY, HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET };
+enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET };
 Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 uint32_t uiRevision=0;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
@@ -81,9 +89,116 @@ bool drawSdArt(const String& path, int x, int y){
   return result == JDR_OK;
 }
 bool drawSdCard(uint8_t id, int x, int y, bool thumbnail=false, bool reversed=false){ return drawSdArt(artPath(id, thumbnail, reversed), x, y); }
-bool drawSdCardBack(int x, int y, bool thumbnail=false){ return drawSdArt(thumbnail ? "/astral/card_back_s.jpg" : "/astral/card_back.jpg", x, y); }
+bool drawSdCardBack(int x,int y,bool thumbnail=false){ return drawSdArt(thumbnail ? "/astral/card_back_s.jpg" : "/astral/card_back.jpg", x, y); }
 String zodiacArtPath(uint8_t id){ char path[32]; snprintf(path, sizeof(path), "/astral/zodiac/%02u.jpg", id); return String(path); }
 bool drawZodiacArt(uint8_t id, int x, int y){ return drawSdArt(zodiacArtPath(id), x, y); }
+
+String htmlEscape(const String& value){
+  String escaped;
+  for(unsigned i=0;i<value.length();i++){
+    switch(value[i]){
+      case '&': escaped += F("&amp;"); break;
+      case '<': escaped += F("&lt;"); break;
+      case '>': escaped += F("&gt;"); break;
+      case '"': escaped += F("&quot;"); break;
+      case '\'': escaped += F("&#39;"); break;
+      default: escaped += value[i]; break;
+    }
+  }
+  return escaped;
+}
+
+String nearbyNetworkOptions(){
+  String options=F("<option value=\"\">Choose a network</option>");
+  int count=WiFi.scanNetworks();
+  for(int i=0;i<count && i<20;i++){
+    String ssid=WiFi.SSID(i);
+    if(!ssid.length()) continue;
+    String safe=htmlEscape(ssid);
+    options += F("<option value=\""); options += safe; options += F("\">");
+    options += safe; options += F(" ("); options += String(WiFi.RSSI(i)); options += F(" dBm)</option>");
+  }
+  WiFi.scanDelete();
+  return options;
+}
+
+String setupPortalPage(){
+  String page=F("<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Astral Cabinet</title><style>body{margin:0;background:#090d22;color:#fff0c9;font-family:Georgia,serif}main{max-width:560px;margin:auto;padding:28px 20px}h1{color:#e4bd63;letter-spacing:.08em;font-size:1.65rem;text-align:center}p{line-height:1.5;color:#dbd0b7}.orb{width:72px;height:72px;border:2px solid #e4bd63;border-radius:50%;margin:12px auto;box-shadow:0 0 28px #80692f;text-align:center;line-height:72px;font-size:32px}form{background:#171d45;border:1px solid #d4aa4f;border-radius:14px;padding:20px;margin-top:24px}label{display:block;margin:14px 0 6px;color:#e4bd63}input,select,button{box-sizing:border-box;width:100%;padding:12px;border-radius:8px;font:inherit}input,select{background:#090d22;color:#fff0c9;border:1px solid #96783d}button{margin-top:18px;background:#741c3b;color:#fff0c9;border:1px solid #e4bd63;cursor:pointer}.note{font-size:.9rem;color:#c2b99f}</style></head><body><main><div class=\"orb\">✦</div><h1>CONNECT TO THE POWER OF THE UNIVERSE</h1><p>Choose the local Wi-Fi network that will carry the Astral Cabinet beyond its offline ritual.</p><form method=\"post\" action=\"/save\"><label for=\"ssid\">Nearby network</label><select id=\"ssid\" name=\"ssid\">");
+  page += nearbyNetworkOptions();
+  page += F("</select><label for=\"manual\">Or enter a network name</label><input id=\"manual\" name=\"manual\" maxlength=\"32\" autocapitalize=\"none\"><label for=\"password\">Wi-Fi password</label><input id=\"password\" name=\"password\" type=\"password\" maxlength=\"63\" autocomplete=\"current-password\"><button type=\"submit\">SAVE AND RESTART</button></form><p class=\"note\">The device restarts after saving. If your network is hidden, enter its name manually.</p></main></body></html>");
+  return page;
+}
+
+void handleSetupPortal(){ webServer.send(200,"text/html",setupPortalPage()); }
+
+void handleSaveNetwork(){
+  String ssid=webServer.arg("manual");
+  if(!ssid.length()) ssid=webServer.arg("ssid");
+  String password=webServer.arg("password");
+  if(!ssid.length() || ssid.length()>32 || password.length()>63){
+    webServer.send(400,"text/html",F("<html><body><h2>Network details are incomplete.</h2><p><a href=\"/\">Return to setup</a></p></body></html>"));
+    return;
+  }
+  netPrefs.putString("ssid",ssid);
+  netPrefs.putString("password",password);
+  webServer.send(200,"text/html",F("<html><body><h2>Saved.</h2><p>The Astral Cabinet is restarting to join the selected network.</p></body></html>"));
+  delay(750);
+  ESP.restart();
+}
+
+void configureWebRoutes(){
+  if(webRoutesReady) return;
+  webServer.on("/",HTTP_GET,handleSetupPortal);
+  webServer.on("/save",HTTP_POST,handleSaveNetwork);
+  webServer.onNotFound([](){ webServer.sendHeader("Location","/"); webServer.send(302,"text/plain",""); });
+  webRoutesReady=true;
+}
+
+void startConfigPortal(){
+  if(portalActive) return;
+  WiFi.mode(WIFI_AP_STA);
+  const IPAddress apIp(192,168,4,1), gateway(192,168,4,1), subnet(255,255,255,0);
+  WiFi.softAPConfig(apIp,gateway,subnet);
+  WiFi.softAP("astral");
+  configureWebRoutes();
+  webServer.begin();
+  portalActive=true;
+  Serial.println("ASTRAL: Wi-Fi setup at SSID astral / http://192.168.4.1");
+}
+
+void stopConfigPortal(){
+  if(!portalActive) return;
+  webServer.stop();
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA);
+  if(savedWifiSsid.length()) WiFi.begin(savedWifiSsid.c_str(),savedWifiPassword.c_str());
+  portalActive=false;
+}
+
+void connectSavedWifi(){
+  savedWifiSsid=netPrefs.getString("ssid","");
+  savedWifiPassword=netPrefs.getString("password","");
+  if(!savedWifiSsid.length()) return;
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(savedWifiSsid.c_str(),savedWifiPassword.c_str());
+  Serial.printf("ASTRAL: joining saved Wi-Fi %s\n",savedWifiSsid.c_str());
+}
+
+bool internetAvailable(uint32_t waitMs=0){
+  uint32_t started=millis();
+  do {
+    if(WiFi.status()==WL_CONNECTED){
+      WiFiClient client;
+      client.setTimeout(600);
+      if(client.connect(IPAddress(1,1,1,1),443)){ client.stop(); return true; }
+    }
+    if(!waitMs || millis()-started>=waitMs) break;
+    delay(100);
+  } while(true);
+  return false;
+}
 
 void text(const String&s,int x,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c,INK); tft.setTextSize(size); tft.setCursor(x,y); tft.print(s); }
 void center(const String&s,int y,int size=1,uint16_t c=CREAM){ tft.setTextSize(size); int x=(W-tft.textWidth(s))/2; text(s,x,y,size,c); }
@@ -103,6 +218,7 @@ void frame(const String&title){
 void button(int x,int y,int w,int h,const String&label,uint16_t fill=BURG){ tft.fillRoundRect(x,y,w,h,6,fill); tft.drawRoundRect(x,y,w,h,6,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); int tx=x+(w-tft.textWidth(label))/2; tft.setCursor(tx,y+(h-8)/2); tft.print(label); }
 void doorPlaque(int x,int y,int w,const String&label,uint16_t fill=NAVY){ tft.fillRoundRect(x,y,w,15,3,fill); tft.drawRoundRect(x,y,w,15,3,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); tft.setCursor(x+(w-tft.textWidth(label))/2,y+4); tft.print(label); }
 void footer(){ text("THE ASTRAL CABINET",92,222,1,MUTED); }
+void overlayCenter(const String&s,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c); tft.setTextSize(size); tft.setCursor((W-tft.textWidth(s))/2,y); tft.print(s); }
 void drawBoot(){
   if(!drawSdArt("/astral/boot.jpg",0,0)){
     tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
@@ -127,6 +243,19 @@ void drawJourney(){
   tft.setCursor((W-tft.textWidth(prompt))/2,127); tft.print(prompt);
   button(65,145,190,30,"OFFLINE",BURG);
   button(65,185,190,30,"ONLINE",NAVY);
+}
+void drawOnlineSetup(){
+  if(!drawSdArt("/astral/online.jpg",0,0)){
+    tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
+    tft.drawCircle(160,54,28,GOLD); tft.drawCircle(160,54,14,GOLD); tft.drawLine(112,54,208,54,GOLD); tft.drawLine(160,14,160,94,GOLD);
+  }
+  button(14,16,32,15,"BACK",NAVY);
+  overlayCenter("CONNECT TO THE POWER",96,2,GOLD);
+  overlayCenter("OF THE UNIVERSE",117,2,GOLD);
+  overlayCenter("1. CONNECT TO WI-FI: astral",150,1,CREAM);
+  overlayCenter("2. OPEN: 192.168.4.1",168,1,CREAM);
+  overlayCenter("3. CHOOSE YOUR HOME WI-FI",186,1,CREAM);
+  overlayCenter("SAVE, THEN THE CABINET RESTARTS",204,1,MUTED);
 }
 void drawHome(){
   if(!drawSdArt("/astral/doorways.jpg",0,0)){
@@ -260,8 +389,9 @@ void drawCardDetail(){
 void drawCabinet(){ frame("THE CABINET"); center("A little archive of the self",50,1,MUTED); text("GUEST",28,76,1,GOLD); text(guestName,110,76,2,CREAM); button(28,98,82,25,"GUEST"); button(119,98,82,25,"MOON CHILD",NAVY); button(210,98,82,25,"STAR SEEKER",NAVY); text("SIGN",28,136,1,GOLD); text(signs[signIndex].name,110,136,2,CREAM); text("ELEMENT",28,164,1,GOLD); text(signs[signIndex].element,110,164,1,CREAM); text("MOON",28,184,1,GOLD); text(moonPhase(),110,184,1,CREAM); button(20,195,280,28,"RETURN TO RITUAL",BURG); }
 void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22); reversed[i]=random(100)<25; } screen=three?SPREAD:DAILY; }
 void tap(int x,int y){
- if(screen==BOOT){ screen=JOURNEY; uiRevision++; return; }
- if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; uiRevision++; return; }
+ if(screen==BOOT){ screen=internetAvailable(savedWifiSsid.length()?3500:0)?HOME:JOURNEY; uiRevision++; return; }
+ if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
+ if(screen==ONLINE_SETUP){ if(x>=14 && x<46 && y>=16 && y<31){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen!=HOME && x>=14 && x<46 && y>=16 && y<31){ screen=HOME; uiRevision++; return; }
  if(screen==HOME){ if(x>=14 && x<46 && y>=16 && y<31)screen=JOURNEY; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=CABINET; }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
@@ -303,10 +433,14 @@ void setup(){
   prefs.begin("cabinet",false);
   guestName=prefs.getString("name",DEFAULT_NAME);
   Serial.println("ASTRAL: preferences complete");
+  netPrefs.begin("network",false);
+  connectSavedWifi();
+  Serial.println("ASTRAL: network preferences complete");
   drawBoot();
   Serial.println("ASTRAL: boot art complete");
 }
 void loop(){
+  if(portalActive) webServer.handleClient();
   if(touch.touched()){
     TS_Point p=touch.getPoint();
     int x=map(p.x,TOUCH_X_MIN,TOUCH_X_MAX,0,W);
@@ -324,6 +458,7 @@ void loop(){
   if(last!=screen||lastReveal!=reveal||lastUiRevision!=uiRevision){
     if(screen==BOOT)drawBoot();
     else if(screen==JOURNEY)drawJourney();
+    else if(screen==ONLINE_SETUP)drawOnlineSetup();
     else if(screen==HOME)drawHome();
     else if(screen==ZODIAC)drawZodiac();
     else if(screen==MENU)drawMenu();
