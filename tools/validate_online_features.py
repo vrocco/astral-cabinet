@@ -23,7 +23,7 @@ required_source = (
     'ELEMENTAL RITUAL',
     'screen=internetReady?LIVE_ASTRAL:ELEMENTAL_RITUAL',
     'x>=0 && x<65 && y>=0 && y<50',
-    'drawSdArt("/astral/settings_gear.jpg",215,205)',
+    'drawSdArt("/astral/settings_gear.jpg",225,213)',
     'DELETE SAVED WI-FI',
     'WiFi.disconnect(true,true)',
     'netPrefs.clear()',

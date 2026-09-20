@@ -379,7 +379,7 @@ void settingsGear(int cx,int cy){
   for(int i=0;i<8;i++){ float a=i*0.785398f; int x1=cx+cos(a)*7,y1=cy+sin(a)*7,x2=cx+cos(a)*10,y2=cy+sin(a)*10; tft.drawLine(x1,y1,x2,y2,BLACK); }
   tft.drawCircle(cx,cy,7,BLACK); tft.drawCircle(cx,cy,3,BLACK); tft.fillCircle(cx,cy,1,BLACK);
 }
-void drawSettingsGear(){ if(!drawSdArt("/astral/settings_gear.jpg",215,205)) settingsGear(230,220); }
+void drawSettingsGear(){ if(!drawSdArt("/astral/settings_gear.jpg",225,213)) settingsGear(238,226); }
 void drawBoot(){
   if(!drawSdArt("/astral/boot.jpg",0,0)){
     tft.fillScreen(INK); tft.drawRect(5,5,W-10,H-10,GOLD); tft.drawRect(10,10,W-20,H-20,BURG);
@@ -686,7 +686,7 @@ void tap(int x,int y){
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
  if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:(screen==CONFIRM_NETWORK_DELETE?SETTINGS:HOME); uiRevision++; return; }
- if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=205&&x<255&&y>=214&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:ELEMENTAL_RITUAL; }
+ if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:ELEMENTAL_RITUAL; }
  else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=144&&y<176)screen=CONFIRM_NETWORK_DELETE; }
  else if(screen==CONFIRM_NETWORK_DELETE){
    if(x>=28&&x<146&&y>=165&&y<195)screen=SETTINGS;
