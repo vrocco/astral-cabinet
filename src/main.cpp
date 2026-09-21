@@ -630,10 +630,10 @@ void drawGroundingFrame(){
   uint32_t cycle=elapsed%12000UL;
   float amount=cycle<4000UL?float(cycle)/4000.0f:cycle<6000UL?1.0f:1.0f-float(cycle-6000UL)/6000.0f;
   int radius=14+int(amount*27.0f);
-  tft.fillCircle(160,111,43,INK);
-  tft.drawCircle(160,111,43,GOLD);
-  tft.fillCircle(160,111,radius,NAVY);
-  tft.drawCircle(160,111,radius,GOLD);
+  tft.fillCircle(160,99,43,INK);
+  tft.drawCircle(160,99,43,GOLD);
+  tft.fillCircle(160,99,radius,NAVY);
+  tft.drawCircle(160,99,radius,GOLD);
   tft.fillRect(48,184,224,31,INK);
   if(finished){ overlayCenter("ONE MINUTE COMPLETE",186,1,GOLD); overlayCenter("TOUCH TO BEGIN AGAIN",201,1,CREAM); return; }
   const char* cue=cycle<4000UL?"INHALE":cycle<6000UL?"HOLD":"EXHALE";

@@ -47,6 +47,7 @@ required_source = (
     'CARRY FORWARD',
     'ONE-MINUTE GROUNDING',
     'drawGroundingFrame()',
+    'tft.fillCircle(160,99,43,INK)',
     'drawSdArt("/astral/grounding.jpg",0,0)',
     'drawSdArt("/astral/moon_ritual.jpg",0,0)',
     'MOON RITUAL',
