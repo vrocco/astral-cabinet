@@ -81,8 +81,10 @@ const Card cards[] = {
  {"The World","completion","A cycle has gathered its meaning. Honor how far you have come before opening the next door.","Something is almost complete, but one loose thread deserves your attention."}
 };
 
-enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, DISPLAY_CALIBRATION, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER };
-Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0, ritualVariant=0, ritualStep=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
+enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, DISPLAY_CALIBRATION, CONFIRM_NETWORK_DELETE, KEEPSAKES, CONFIRM_KEEPSAKE_CLEAR, GROUNDING, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, MOON_RITUAL, COSMIC_WEATHER };
+Screen screen=BOOT, ritualReturnScreen=HOME; int signIndex=0, spreadMode=0, reveal=0, detailCard=0, ritualVariant=0, ritualStep=0, bridgeCardIndex=-1, keepsakeIndex=0, keepsakeCount=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}, ritualBridge=false; String guestName;
+uint32_t groundingStarted=0;
+constexpr uint8_t KEEPSAKE_LIMIT=6;
 uint32_t uiRevision=0;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
 String readSdText(const char* path, size_t limit=8192);
@@ -306,6 +308,30 @@ String localDateTime(){
   char formatted[36]; strftime(formatted,sizeof(formatted),"%a, %b %d · %I:%M %p",&local);
   return String(formatted);
 }
+String keepsakeDate(){
+  if(!clockIsValid()) return "A recent visit";
+  struct tm local; time_t now=time(nullptr); localtime_r(&now,&local);
+  char formatted[20]; strftime(formatted,sizeof(formatted),"%b %d, %Y",&local);
+  return String(formatted);
+}
+struct Keepsake { String date; String kind; String title; String detail; };
+String keepsakeKey(uint8_t index){ return String("keepsake")+String(index); }
+String keepsakePart(const String& value,uint8_t part){
+  int start=0;
+  for(uint8_t i=0;i<part;i++){ start=value.indexOf('|',start)+1; if(start<=0) return String(); }
+  int end=value.indexOf('|',start); return value.substring(start,end<0?value.length():end);
+}
+Keepsake loadKeepsake(uint8_t index){
+  String value=prefs.getString(keepsakeKey(index).c_str(),"");
+  return {keepsakePart(value,0),keepsakePart(value,1),keepsakePart(value,2),keepsakePart(value,3)};
+}
+void saveKeepsake(const String& kind,const String& title,const String& detail){
+  String entry=keepsakeDate()+"|"+kind+"|"+title+"|"+detail;
+  for(int i=KEEPSAKE_LIMIT-1;i>0;i--) prefs.putString(keepsakeKey(i).c_str(),prefs.getString(keepsakeKey(i-1).c_str(),""));
+  prefs.putString(keepsakeKey(0).c_str(),entry);
+  keepsakeCount=min(int(KEEPSAKE_LIMIT),keepsakeCount+1); keepsakeIndex=0;
+}
+void clearKeepsakes(){ for(uint8_t i=0;i<KEEPSAKE_LIMIT;i++) prefs.remove(keepsakeKey(i).c_str()); keepsakeCount=0; keepsakeIndex=0; }
 
 bool refreshCosmicCache(){
   if(!internetReady || !sdArtReady || (lastCosmicRefresh && millis()-lastCosmicRefresh<21600000UL)) return false;
@@ -517,14 +543,29 @@ bool selectElementalRitual(){
   lastSdRitual[element]=choice; sdRitualLoaded=true;
   return true;
 }
+String activeRitualDetail(){
+  const ElementalRitual& fallback=elementalRituals[selectedElement()][ritualVariant%3];
+  const String intention=sdRitualLoaded?sdRitualIntention:fallback.intention;
+  const String practice=sdRitualLoaded?sdRitualPractice:fallback.practice;
+  return intention+" "+practice;
+}
+void saveActiveRitual(){
+  String title=String(signs[signIndex].element)+" RITUAL";
+  if(ritualBridge && bridgeCardIndex>=0) title=String("CARRY: ")+cards[bridgeCardIndex].name;
+  saveKeepsake("RITUAL",title,activeRitualDetail());
+}
+void startTarotRitual(int cardIndex,Screen returnScreen){
+  bridgeCardIndex=cardIndex; ritualReturnScreen=returnScreen; ritualBridge=true;
+  selectElementalRitual(); screen=ELEMENTAL_RITUAL;
+}
 void drawElementalRitual(){
   if(!drawSdArt("/astral/elemental_ritual.jpg",0,0)) frame("ELEMENTAL RITUAL");
   button(14,16,32,15,"BACK",NAVY);
   const ElementalRitual& ritual=elementalRituals[selectedElement()][ritualVariant%3];
   const char* sections[]={"INTENTION","PRACTICE","RELEASE"};
   const char* contents[]={sdRitualLoaded?sdRitualIntention.c_str():ritual.intention,sdRitualLoaded?sdRitualPractice.c_str():ritual.practice,sdRitualLoaded?sdRitualRelease.c_str():ritual.release};
-  overlayAt("ELEMENTAL RITUAL",230,47,1,CREAM);
-  overlayAt(String(signs[signIndex].name)+"  ·  "+signs[signIndex].element,230,63,1,GOLD);
+  overlayAt(ritualBridge?"CARRY FORWARD":"ELEMENTAL RITUAL",230,47,1,CREAM);
+  overlayAt(ritualBridge?cards[bridgeCardIndex].name:String(signs[signIndex].name)+"  ·  "+signs[signIndex].element,230,63,1,GOLD);
   overlayAt(String(sections[ritualStep])+"  "+String(ritualStep+1)+" OF 3",230,82,1,GOLD);
   textWrap(contents[ritualStep],174,98,1,CREAM,112,6);
   overlayAt(ritualStep<2?"TOUCH TEXT TO CONTINUE":"TOUCH TEXT TO BEGIN AGAIN",230,190,1,CREAM);
@@ -534,12 +575,10 @@ void drawElementalRitual(){
 void drawSettings(){
   frame("SETTINGS");
   center("Cabinet preferences",57,1,MUTED);
-  text("DISPLAY",28,78,1,GOLD);
-  button(28,89,264,27,"DISPLAY CALIBRATION",NAVY);
-  text("NETWORK",28,135,1,GOLD);
-  text("Remove the saved Wi-Fi network and",28,149,1,CREAM);
-  text("return to first-time setup.",28,162,1,CREAM);
-  button(28,181,264,28,"DELETE SAVED WI-FI",BURG);
+  button(28,72,264,24,"DISPLAY CALIBRATION",NAVY);
+  button(28,105,264,24,"KEEPSAKES",NAVY);
+  button(28,138,264,24,"ONE-MINUTE GROUNDING",NAVY);
+  button(28,171,264,24,"DELETE SAVED WI-FI",BURG);
 }
 void drawDisplayCalibration(){
   applyDisplayProfile(previewDisplayProfile);
@@ -560,6 +599,53 @@ void drawConfirmNetworkDelete(){
   button(28,165,118,30,"CANCEL",NAVY);
   button(174,165,118,30,"DELETE & REBOOT",BURG);
 }
+void drawKeepsakes(){
+  frame("KEEPSAKES");
+  if(!keepsakeCount){
+    center("A small archive of reflection",64,1,MUTED);
+    center("Your readings and completed rituals",101,1,CREAM);
+    center("will rest here for a little while.",116,1,CREAM);
+    center("There is nothing to keep yet.",152,1,GOLD);
+    return;
+  }
+  Keepsake keepsake=loadKeepsake(keepsakeIndex);
+  center(String(keepsakeIndex+1)+" OF "+String(keepsakeCount)+"  ·  "+keepsake.date,55,1,MUTED);
+  center(keepsake.kind,73,1,GOLD);
+  panelTitle(keepsake.title,28,91,264);
+  textWrap(keepsake.detail,28,117,1,CREAM,264,4);
+  button(28,181,78,25,"OLDER",NAVY);
+  button(121,181,78,25,"NEWER",NAVY);
+  button(214,181,78,25,"CLEAR",BURG);
+}
+void drawConfirmKeepsakeClear(){
+  frame("CLEAR KEEPSAKES?");
+  center("This cannot be undone.",62,1,GOLD);
+  textWrap("This clears the cabinet's local archive of readings and completed rituals. Nothing leaves the device.",30,86,1,CREAM,260,4);
+  button(28,165,118,30,"CANCEL",NAVY);
+  button(174,165,118,30,"CLEAR ARCHIVE",BURG);
+}
+void drawGroundingFrame(){
+  uint32_t elapsed=millis()-groundingStarted;
+  bool finished=elapsed>=60000UL;
+  uint32_t cycle=elapsed%12000UL;
+  float amount=cycle<4000UL?float(cycle)/4000.0f:cycle<6000UL?1.0f:1.0f-float(cycle-6000UL)/6000.0f;
+  int radius=14+int(amount*27.0f);
+  tft.fillCircle(160,111,43,INK);
+  tft.drawCircle(160,111,43,GOLD);
+  tft.fillCircle(160,111,radius,NAVY);
+  tft.drawCircle(160,111,radius,GOLD);
+  tft.fillRect(48,184,224,31,INK);
+  if(finished){ overlayCenter("ONE MINUTE COMPLETE",186,1,GOLD); overlayCenter("TOUCH TO BEGIN AGAIN",201,1,CREAM); return; }
+  const char* cue=cycle<4000UL?"INHALE":cycle<6000UL?"HOLD":"EXHALE";
+  overlayCenter(cue,186,2,CREAM);
+  overlayCenter(String(60-int(elapsed/1000UL))+" seconds remaining",204,1,GOLD);
+}
+void drawGrounding(){
+  if(!drawSdArt("/astral/grounding.jpg",0,0)) frame("ONE-MINUTE GROUNDING");
+  button(14,16,32,15,"BACK",NAVY);
+  overlayCenter("ONE-MINUTE GROUNDING",20,1,CREAM);
+  drawGroundingFrame();
+}
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color);
 void drawZodiacTile(uint8_t id,int x,int y){
   tft.fillRoundRect(x-2,y-2,64,64,6,id==signIndex?BURG:NAVY);
@@ -579,6 +665,21 @@ void drawMenu(){
   overlayAt("CHANGE SIGN",160,175,1,CREAM);
 }
 String moonPhase(){ return String(lunarInfo().phase); }
+struct MoonRitual { const char* theme; const char* practice; };
+const MoonRitual moonRituals[]={
+  {"Make a little room for a beginning that is not ready to be seen.","Choose one seed of intention and write it down."},
+  {"Protect the smallest sign of momentum without asking it to be complete.","Give one promising idea ten undistracted minutes."},
+  {"Let your direction become visible through one clear choice.","Make a simple plan for the next seven days."},
+  {"Gather what is working and give it patient, practical care.","Tend one relationship, habit, or project with attention."},
+  {"Notice what has ripened. Let gratitude be specific and unhurried.","Name three things that are already enough tonight."},
+  {"Share what has become clear, then conserve your energy for what matters.","Offer one honest thanks or useful kindness."},
+  {"Make peace with the work of releasing and recalibrating.","Set down one obligation that no longer fits."},
+  {"Rest in the quieter part of the cycle; clarity is gathering below sight.","Reduce one demand and make space for stillness."}
+};
+int moonRitualIndex(){
+  float age=lunarInfo().age;
+  return age<1.84566f?0:age<5.53699f?1:age<9.22831f?2:age<12.91963f?3:age<16.61096f?4:age<20.30228f?5:age<23.99361f?6:7;
+}
 
 void star(int cx,int cy,int r,uint16_t color){
   tft.drawLine(cx,cy-r,cx+r/3,cy+r/3,color); tft.drawLine(cx+r/3,cy+r/3,cx-r,cy-r/4,color);
@@ -634,6 +735,14 @@ void drawCardBack(int x,int y,int w,int h){
 void zodiacMark(uint8_t id,int cx,int cy,int r,uint16_t color){
   tft.drawCircle(cx,cy,r+2,color); cardMotif(id%12,cx,cy,r,color);
 }
+void saveDailyKeepsake(){
+  const Card& card=cards[drawn[0]];
+  saveKeepsake("TAROT",String(card.name)+(reversed[0]?" · reversed":" · upright"),reversed[0]?card.rev:card.up);
+}
+void saveSpreadKeepsake(){
+  String detail=String("Past: ")+cards[drawn[0]].name+"  Present: "+cards[drawn[1]].name+"  Becoming: "+cards[drawn[2]].name;
+  saveKeepsake("THREE-CARD READING","Past / Present / Becoming",detail);
+}
 void drawDaily(){
   frame("DAILY OMEN"); const Card&c=cards[drawn[0]];
   if(reveal==0){
@@ -645,8 +754,9 @@ void drawDaily(){
     drawCardArt(drawn[0],12,54,120,160,false,reversed[0]);
     panelTitle(c.name,146,72,158);
     text(reversed[0]?"REVERSED":"UPRIGHT",146,96,1,reversed[0]?BURG:GOLD);
-    textWrap(reversed[0]?c.rev:c.up,146,116,1,CREAM,158,7);
-    text("touch below for another omen",146,202,1,MUTED);
+    textWrap(reversed[0]?c.rev:c.up,146,116,1,CREAM,158,6);
+    button(146,190,74,20,"NEW OMEN",NAVY);
+    button(228,190,76,20,"CARRY",BURG);
   }
   footer();
 }
@@ -670,7 +780,7 @@ void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int m
   }
   emit(line);
 }
-void drawSpread(){ frame("THREE CARD READING"); center(String(signs[signIndex].name)+"  ·  "+(reveal<3?"reveal the cards":"your constellation of meaning"),51,1,GOLD); const char* pos[]={"PAST","PRESENT","BECOMING"}; for(int i=0;i<3;i++){ int x=20+i*100; if(i>=reveal){ drawCardBack(x,76,78,104); } else { drawCardArt(drawn[i],x,76,78,104,true,reversed[i]); } text(pos[i],x+15,188,1,GOLD); } if(reveal==3) center("Tap a card to read its meaning",204,1,MUTED); footer(); }
+void drawSpread(){ frame("THREE CARD READING"); center(String(signs[signIndex].name)+"  ·  "+(reveal<3?"reveal the cards":"your constellation of meaning"),51,1,GOLD); const char* pos[]={"PAST","PRESENT","BECOMING"}; for(int i=0;i<3;i++){ int x=20+i*100; if(i>=reveal){ drawCardBack(x,76,78,104); } else { drawCardArt(drawn[i],x,76,78,104,true,reversed[i]); } text(pos[i],x+15,188,1,GOLD); } if(reveal==3){ text("Tap a card to read",16,205,1,MUTED); button(228,201,76,18,"CARRY",BURG); } footer(); }
 void drawCardDetail(){
   const Card&c=cards[drawn[detailCard]];
   const char* pos[]={"PAST", "PRESENT", "BECOMING"};
@@ -690,6 +800,7 @@ void drawLiveAstral(){
   overlayAt("SKY NOW",55,164,1,CREAM);
   overlayAt("RITUAL",160,164,1,CREAM); overlayAt("CALENDAR",160,177,1,CREAM);
   overlayAt("COSMIC",266,164,1,CREAM); overlayAt("WEATHER",266,177,1,CREAM);
+  doorPlaque(105,207,110,"MOON RITUAL",NAVY);
 }
 void drawSkyNow(){
   if(!drawSdArt("/astral/sky_now.jpg",0,0)){ frame("SKY NOW"); }
@@ -734,6 +845,24 @@ void drawRitualCalendar(){
 
   }
 }
+void drawMoonRitual(){
+  if(!drawSdArt("/astral/moon_ritual.jpg",0,0)) frame("MOON RITUAL");
+  button(14,16,32,15,"BACK",NAVY);
+  if(!clockSynchronized){
+    overlayCenter("MOON RITUAL",20,1,CREAM);
+    overlayAt("A time signal will open",230,104,1,CREAM);
+    overlayAt("tonight's ritual.",230,119,1,CREAM);
+    return;
+  }
+  const MoonRitual& ritual=moonRituals[moonRitualIndex()];
+  String phase=moonPhase(); phase.toUpperCase();
+  overlayCenter("MOON RITUAL",16,1,CREAM);
+  overlayCenter(phase,31,1,GOLD);
+  overlayAt("REFLECTION",230,67,1,GOLD);
+  textWrap(ritual.theme,177,81,1,CREAM,108,3);
+  overlayAt("PRACTICE",230,125,1,GOLD);
+  textWrap(ritual.practice,177,139,1,CREAM,108,3);
+}
 void drawCosmicWeather(){
   if(!drawSdArt("/astral/cosmic_weather.jpg",0,0)){ frame("COSMIC WEATHER"); }
   button(14,16,32,15,"BACK",NAVY);
@@ -752,15 +881,20 @@ void drawCosmicWeather(){
     }
   }
 }
-void newReading(bool three){ reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22); reversed[i]=random(100)<25; } screen=three?SPREAD:DAILY; }
+void newReading(bool three){ ritualBridge=false; bridgeCardIndex=-1; reveal=0; for(int i=0;i<3;i++){ drawn[i]=random(22); reversed[i]=random(100)<25; } screen=three?SPREAD:DAILY; }
 void tap(int x,int y){
  if(screen==BOOT){ internetReady=internetAvailable(savedWifiSsid.length()?3500:0); if(internetReady) requestClockSync(); screen=internetReady?HOME:JOURNEY; uiRevision++; return; }
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
  if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen==DISPLAY_CALIBRATION && x>=0 && x<65 && y>=0 && y<50){ previewDisplayProfile=displayProfile; applyDisplayProfile(displayProfile); screen=SETTINGS; uiRevision++; return; }
- if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:(screen==CONFIRM_NETWORK_DELETE?SETTINGS:HOME); uiRevision++; return; }
- if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212){ if(internetReady)screen=LIVE_ASTRAL; else { selectElementalRitual(); screen=ELEMENTAL_RITUAL; } } }
- else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=89&&y<116){ previewDisplayProfile=displayProfile; screen=DISPLAY_CALIBRATION; } else if(x>=28&&x<292&&y>=181&&y<209)screen=CONFIRM_NETWORK_DELETE; }
+ if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){
+   if(screen==ELEMENTAL_RITUAL && ritualBridge){ screen=ritualReturnScreen; ritualBridge=false; }
+   else if(screen==KEEPSAKES||screen==CONFIRM_KEEPSAKE_CLEAR||screen==GROUNDING||screen==CONFIRM_NETWORK_DELETE) screen=SETTINGS;
+   else screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==MOON_RITUAL||screen==COSMIC_WEATHER)?LIVE_ASTRAL:HOME;
+   uiRevision++; return;
+ }
+ if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212){ if(internetReady)screen=LIVE_ASTRAL; else { ritualBridge=false; selectElementalRitual(); screen=ELEMENTAL_RITUAL; } } }
+ else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=72&&y<96){ previewDisplayProfile=displayProfile; screen=DISPLAY_CALIBRATION; } else if(x>=28&&x<292&&y>=105&&y<129)screen=KEEPSAKES; else if(x>=28&&x<292&&y>=138&&y<162){ groundingStarted=millis(); screen=GROUNDING; } else if(x>=28&&x<292&&y>=171&&y<195)screen=CONFIRM_NETWORK_DELETE; }
  else if(screen==DISPLAY_CALIBRATION){
    if(x>=28&&x<148&&y>=174&&y<202) previewDisplayProfile=(previewDisplayProfile+1)%8;
    else if(x>=172&&x<292&&y>=174&&y<202){ displayProfile=previewDisplayProfile; prefs.putUChar("displayProfile",displayProfile); screen=SETTINGS; }
@@ -775,15 +909,25 @@ void tap(int x,int y){
      delay(200); ESP.restart(); return;
    }
  }
+ else if(screen==KEEPSAKES && keepsakeCount){
+   if(x>=28&&x<106&&y>=181&&y<206) keepsakeIndex=min(keepsakeCount-1,keepsakeIndex+1);
+   else if(x>=121&&x<199&&y>=181&&y<206) keepsakeIndex=max(0,keepsakeIndex-1);
+   else if(x>=214&&x<292&&y>=181&&y<206)screen=CONFIRM_KEEPSAKE_CLEAR;
+ }
+ else if(screen==CONFIRM_KEEPSAKE_CLEAR){
+   if(x>=28&&x<146&&y>=165&&y<195)screen=KEEPSAKES;
+   else if(x>=174&&x<292&&y>=165&&y<195){ clearKeepsakes(); screen=KEEPSAKES; }
+ }
+ else if(screen==GROUNDING){ if(millis()-groundingStarted>=60000UL) groundingStarted=millis(); }
  else if(screen==ELEMENTAL_RITUAL){
    if(x<145&&y>=45&&y<230) selectElementalRitual();
-   else if(x>=145&&x<310&&y>=55&&y<210) ritualStep=(ritualStep+1)%3;
+   else if(x>=145&&x<310&&y>=55&&y<210){ if(ritualStep==1) saveActiveRitual(); ritualStep=(ritualStep+1)%3; }
  }
- else if(screen==LIVE_ASTRAL){ if(y>=130&&y<205&&x<105){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=130&&y<205&&x<215)screen=RITUAL_CALENDAR; else if(y>=130&&y<205){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
+ else if(screen==LIVE_ASTRAL){ if(y>=202&&y<236&&x>=95&&x<225)screen=MOON_RITUAL; else if(y>=130&&y<205&&x<105){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=130&&y<205&&x<215)screen=RITUAL_CALENDAR; else if(y>=130&&y<205){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
  else if(screen==MENU){ if(x>=10&&x<112&&y>=130&&y<180)newReading(false); else if(x>=208&&x<310&&y>=130&&y<180)newReading(true); else if(x>=110&&x<210&&y>=160&&y<200)screen=ZODIAC; }
- else if(screen==DAILY){ if(x<45&&y<45)screen=HOME; else { reveal=1; if(y>180)newReading(false); } }
- else if(screen==SPREAD){ if(x<45&&y<45)screen=HOME; else if(reveal<3)reveal++; else if(y>=70&&y<190&&x>=20&&x<298){ detailCard=constrain((x-20)/100,0,2); screen=CARD; } else if(y>195)newReading(true); }
+ else if(screen==DAILY){ if(x<45&&y<45)screen=HOME; else if(reveal==0){ reveal=1; saveDailyKeepsake(); } else if(y>=184&&y<215&&x>=146&&x<220)newReading(false); else if(y>=184&&y<215&&x>=228&&x<310)startTarotRitual(drawn[0],DAILY); }
+ else if(screen==SPREAD){ if(x<45&&y<45)screen=HOME; else if(reveal<3){ reveal++; if(reveal==3)saveSpreadKeepsake(); } else if(y>=201&&y<220&&x>=228&&x<310)startTarotRitual(drawn[1],SPREAD); else if(y>=70&&y<190&&x>=20&&x<298){ detailCard=constrain((x-20)/100,0,2); screen=CARD; } }
  else if(screen==CARD){ screen=SPREAD; }
  else if(screen==CABINET){ if(y>=190)screen=HOME; else if(y>95&&y<130){ if(x<112)guestName="Astral Guest"; else if(x<207)guestName="Moon Child"; else guestName="Star Seeker"; prefs.putString("name",guestName); } }
  uiRevision++;
@@ -818,6 +962,8 @@ void setup(){
   prefs.begin("cabinet",false);
   guestName=prefs.getString("name",DEFAULT_NAME);
   displayProfile=prefs.getUChar("displayProfile",0)%8;
+  keepsakeCount=0;
+  while(keepsakeCount<KEEPSAKE_LIMIT && prefs.getString(keepsakeKey(keepsakeCount).c_str(),"").length()) keepsakeCount++;
   previewDisplayProfile=displayProfile;
   applyDisplayProfile(displayProfile);
   Serial.println("ASTRAL: preferences complete");
@@ -844,7 +990,9 @@ void loop(){
   static Screen last=BOOT;
   static int lastReveal=-1;
   static uint32_t lastUiRevision=UINT32_MAX;
-  if(last!=screen||lastReveal!=reveal||lastUiRevision!=uiRevision){
+  static uint32_t lastGroundingFrame=UINT32_MAX;
+  uint32_t groundingFrame=screen==GROUNDING?millis()/100UL:0;
+  if(last!=screen||lastReveal!=reveal||lastUiRevision!=uiRevision||(screen==GROUNDING&&lastGroundingFrame!=groundingFrame)){
     if(screen==BOOT)drawBoot();
     else if(screen==JOURNEY)drawJourney();
     else if(screen==ONLINE_SETUP)drawOnlineSetup();
@@ -852,6 +1000,9 @@ void loop(){
     else if(screen==SETTINGS)drawSettings();
     else if(screen==DISPLAY_CALIBRATION)drawDisplayCalibration();
     else if(screen==CONFIRM_NETWORK_DELETE)drawConfirmNetworkDelete();
+    else if(screen==KEEPSAKES)drawKeepsakes();
+    else if(screen==CONFIRM_KEEPSAKE_CLEAR)drawConfirmKeepsakeClear();
+    else if(screen==GROUNDING){ if(last==GROUNDING)drawGroundingFrame(); else drawGrounding(); }
     else if(screen==ELEMENTAL_RITUAL)drawElementalRitual();
     else if(screen==ZODIAC)drawZodiac();
     else if(screen==MENU)drawMenu();
@@ -862,9 +1013,11 @@ void loop(){
     else if(screen==LIVE_ASTRAL)drawLiveAstral();
     else if(screen==SKY_NOW)drawSkyNow();
     else if(screen==RITUAL_CALENDAR)drawRitualCalendar();
+    else if(screen==MOON_RITUAL)drawMoonRitual();
     else if(screen==COSMIC_WEATHER)drawCosmicWeather();
     last=screen;
     lastReveal=reveal;
     lastUiRevision=uiRevision;
+    lastGroundingFrame=groundingFrame;
   }
 }

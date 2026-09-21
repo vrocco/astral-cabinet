@@ -41,6 +41,8 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/ritual_calendar.jpg
 /astral/cosmic_weather.jpg
 /astral/elemental_ritual.jpg
+/astral/moon_ritual.jpg
+/astral/grounding.jpg
 /astral/rituals.json
 /astral/00.jpg
 /astral/00_s.jpg
@@ -204,6 +206,9 @@ experiences illustrated with their own Art Nouveau backgrounds:
   illumination, plus the next new and full moon.
 - **Ritual Calendar** keeps the next lunar thresholds visible without turning
   the cabinet into a generic calendar.
+- **Moon Ritual** turns the current local lunar phase into one brief reflection
+  and a practical, phase-appropriate action. It uses the existing NTP-derived
+  moon calculation and needs no personal data or external astrology service.
 - **Cosmic Weather** displays Mercury, Venus, Mars, and Jupiter signs and
   direct/retrograde state, plus a major aspect when one is close.
 
@@ -216,6 +221,24 @@ uses an HTTPS request with certificate verification disabled solely for this
 non-sensitive display cache; Wi-Fi credentials are never sent to that endpoint.
 If strict certificate pinning is desired later, replace the raw GitHub endpoint
 with a stable hostname and its pinned CA certificate.
+
+## Personal reflection tools
+
+**Keepsakes** is a private, local archive of the six most recent tarot draws,
+completed three-card readings, and completed Elemental Rituals. It is stored in
+ESP32 Preferences, never uploaded, and can be cleared from Settings. A revealed
+tarot draw and a fully revealed spread are kept automatically. A ritual is kept
+when its Release section opens.
+
+After a revealed tarot omen or completed three-card spread, the optional
+**Carry** control opens an Elemental Ritual for the selected sign's element.
+The ritual heading retains the tarot card that inspired it, and BACK returns to
+the original reading.
+
+**One-Minute Grounding** is an offline, touch-free breathing companion in
+Settings: inhale for four seconds, hold for two, and exhale for six. Its orb
+gently expands and contracts for one minute; after completion, tap anywhere on
+the screen to begin another minute.
 
 ## Controls
 
@@ -230,6 +253,9 @@ reading screen, tap each face-down card to reveal it, then tap a revealed card
 to read its meaning. In the Zodiac screen, tapping a medallion selects it and
 opens the reading menu. The visible **BACK** button at top left returns to the
 main menu from every reading screen.
+
+Settings also contains **Keepsakes** and **One-Minute Grounding**. Live Astral
+has a small **Moon Ritual** plaque below its three illustrated panels.
 
 ## License
 

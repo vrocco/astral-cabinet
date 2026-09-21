@@ -11,19 +11,21 @@ partitions = (root / "partitions.csv").read_text(encoding="utf-8")
 elemental_art = root / "assets/sd/astral/elemental_ritual.jpg"
 settings_gear_art = root / "assets/sd/astral/settings_gear.jpg"
 ritual_library = root / "assets/sd/astral/rituals.json"
+moon_ritual_art = root / "assets/sd/astral/moon_ritual.jpg"
+grounding_art = root / "assets/sd/astral/grounding.jpg"
 
 required_source = (
     'configTzTime(savedTimezone.c_str(),"pool.ntp.org","time.nist.gov")',
     'netPrefs.putString("timezone",savedTimezone)',
     'netPrefs.putFloat("latitude",skyLatitude)',
-    'enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, DISPLAY_CALIBRATION, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER }',
+    'enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, DISPLAY_CALIBRATION, CONFIRM_NETWORK_DELETE, KEEPSAKES, CONFIRM_KEEPSAKE_CLEAR, GROUNDING, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, MOON_RITUAL, COSMIC_WEATHER }',
     'COSMIC_FEED_URL="https://raw.githubusercontent.com/vrocco/astral-cabinet/main/data/cosmic.txt"',
     'readSdText("/astral/setup.html")',
     'refreshCosmicCache()',
     'drawSdArt("/astral/reading_menu.jpg",0,0)',
     'drawSdArt("/astral/elemental_ritual.jpg",0,0)',
     'ELEMENTAL RITUAL',
-    'if(internetReady)screen=LIVE_ASTRAL; else { selectElementalRitual(); screen=ELEMENTAL_RITUAL; }',
+    'else { ritualBridge=false; selectElementalRitual(); screen=ELEMENTAL_RITUAL; }',
     'x>=0 && x<65 && y>=0 && y<50',
     'drawSdArt("/astral/settings_gear.jpg",225,213)',
     'DELETE SAVED WI-FI',
@@ -38,6 +40,16 @@ required_source = (
     'JsonDocument document;',
     'deserializeJson(document,file)',
     'SD.exists("/astral/rituals.json")',
+    'saveKeepsake(',
+    'KEEPSAKE_LIMIT=6',
+    'CLEAR KEEPSAKES?',
+    'startTarotRitual(',
+    'CARRY FORWARD',
+    'ONE-MINUTE GROUNDING',
+    'drawGroundingFrame()',
+    'drawSdArt("/astral/grounding.jpg",0,0)',
+    'drawSdArt("/astral/moon_ritual.jpg",0,0)',
+    'MOON RITUAL',
 )
 for item in required_source:
     assert item in source, item
@@ -47,6 +59,8 @@ assert 'phone-location' not in portal
 assert "Maxine's Astral Cabinet" in portal
 assert elemental_art.exists() and elemental_art.stat().st_size > 0
 assert settings_gear_art.exists() and settings_gear_art.stat().st_size > 0
+assert moon_ritual_art.exists() and moon_ritual_art.stat().st_size > 0
+assert grounding_art.exists() and grounding_art.stat().st_size > 0
 assert len(json.loads(ritual_library.read_text(encoding="utf-8"))["fire"]) >= 12
 assert feed[0] == "ASTRAL COSMIC WEATHER", feed[:1]
 assert feed[2].startswith("Moon: "), feed[2]
