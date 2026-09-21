@@ -83,6 +83,21 @@ Target: common ESP32-2432S028 CYD board:
 
 Some CYD revisions vary. If touch is offset, adjust `TOUCH_X_MIN/MAX` and `TOUCH_Y_MIN/MAX` in `src/main.cpp`.
 
+### Display calibration across CYD revisions
+
+The 2.8-inch CYD label does not guarantee an identical LCD panel initialization.
+The firmware keeps the original panel profile by default and includes eight
+per-device display profiles covering the known ILI9341-compatible combinations
+of legacy/standard gamma, BGR/RGB channel order, and display inversion.
+
+On a device whose artwork looks washed out, blue-white, inverted, or has swapped
+red/blue colors, open the doorway-screen gear, then select **Display
+Calibration**. Use **Try Next** until the red, green, blue, and white swatches
+look correct and the navy sample screen looks rich rather than washed out. Tap
+**Save This** to store that profile in the device's Preferences; each CYD keeps
+its own selection through reboots and future firmware flashes unless its flash
+is erased.
+
 ## Build and flash
 
 Install PlatformIO, then from this directory:

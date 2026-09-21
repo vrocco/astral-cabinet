@@ -38,6 +38,7 @@ constexpr int W=320, H=240;
 constexpr int TOUCH_X_MIN=200, TOUCH_X_MAX=3900, TOUCH_Y_MIN=200, TOUCH_Y_MAX=3900;
 const uint16_t INK=0x0841, NAVY=0x10A3, BURG=0x780C, GOLD=0xD5A5, CREAM=0xFFDB, MUTED=0xB5B6, BLACK=0x0000;
 const char* DEFAULT_NAME="Astral Guest";
+uint8_t displayProfile=0, previewDisplayProfile=0;
 struct TimezoneChoice { const char* value; const char* label; };
 const TimezoneChoice timezones[] = {
  {"PST8PDT,M3.2.0,M11.1.0","Pacific (Los Angeles)"},
@@ -79,7 +80,7 @@ const Card cards[] = {
  {"The World","completion","A cycle has gathered its meaning. Honor how far you have come before opening the next door.","Something is almost complete, but one loose thread deserves your attention."}
 };
 
-enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER };
+enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, DISPLAY_CALIBRATION, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER };
 Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0, ritualVariant=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 uint32_t uiRevision=0;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
@@ -375,6 +376,32 @@ void doorPlaque(int x,int y,int w,const String&label,uint16_t fill=NAVY){ tft.fi
 void footer(){ text("THE ASTRAL CABINET",92,222,1,MUTED); }
 void overlayCenter(const String&s,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c); tft.setTextSize(size); tft.setCursor((W-tft.textWidth(s))/2,y); tft.print(s); }
 void overlayAt(const String&s,int cx,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c); tft.setTextSize(size); tft.setCursor(cx-tft.textWidth(s)/2,y); tft.print(s); }
+struct PanelProfile { const char* name; bool standardGamma; bool rgbOrder; bool inverted; };
+const PanelProfile panelProfiles[] = {
+  {"LEGACY / BGR / INVERT",false,false,true}, {"STANDARD / BGR / INVERT",true,false,true},
+  {"LEGACY / BGR / NORMAL",false,false,false}, {"STANDARD / BGR / NORMAL",true,false,false},
+  {"LEGACY / RGB / INVERT",false,true,true}, {"STANDARD / RGB / INVERT",true,true,true},
+  {"LEGACY / RGB / NORMAL",false,true,false}, {"STANDARD / RGB / NORMAL",true,true,false}
+};
+const uint8_t gammaStandardPositive[]={0x0F,0x31,0x2B,0x0C,0x0E,0x08,0x4E,0xF1,0x37,0x07,0x10,0x03,0x0E,0x09,0x00};
+const uint8_t gammaStandardNegative[]={0x00,0x0E,0x14,0x03,0x11,0x07,0x31,0xC1,0x48,0x08,0x0F,0x0C,0x31,0x36,0x0F};
+const uint8_t gammaLegacyPositive[]={0x0F,0x2A,0x28,0x08,0x0E,0x08,0x54,0xA9,0x43,0x0A,0x0F,0x00,0x00,0x00,0x00};
+const uint8_t gammaLegacyNegative[]={0x00,0x15,0x17,0x07,0x11,0x06,0x2B,0x56,0x3C,0x05,0x10,0x0F,0x3F,0x3F,0x0F};
+void writePanelCommand(uint8_t command,const uint8_t* data,uint8_t count){
+  tft.writecommand(command); for(uint8_t i=0;i<count;i++) tft.writedata(data[i]);
+}
+void applyDisplayProfile(uint8_t profileIndex){
+  const PanelProfile& profile=panelProfiles[profileIndex%8];
+  const uint8_t gammaSelect=0x01;
+  tft.startWrite();
+  writePanelCommand(0x26,&gammaSelect,1);
+  writePanelCommand(0xE0,profile.standardGamma?gammaStandardPositive:gammaLegacyPositive,15);
+  writePanelCommand(0xE1,profile.standardGamma?gammaStandardNegative:gammaLegacyNegative,15);
+  tft.writecommand(0x36);
+  tft.writedata(0xE0 | (profile.rgbOrder?0x00:0x08));
+  tft.endWrite();
+  tft.invertDisplay(profile.inverted);
+}
 void settingsGear(int cx,int cy){
   for(int i=0;i<8;i++){ float a=i*0.785398f; int x1=cx+cos(a)*7,y1=cy+sin(a)*7,x2=cx+cos(a)*10,y2=cy+sin(a)*10; tft.drawLine(x1,y1,x2,y2,BLACK); }
   tft.drawCircle(cx,cy,7,BLACK); tft.drawCircle(cx,cy,3,BLACK); tft.fillCircle(cx,cy,1,BLACK);
@@ -475,11 +502,24 @@ void drawElementalRitual(){
 void drawSettings(){
   frame("SETTINGS");
   center("Cabinet preferences",57,1,MUTED);
-  tft.drawFastHLine(28,76,264,GOLD);
-  text("NETWORK",28,91,1,GOLD);
-  text("Remove the saved Wi-Fi network and",28,108,1,CREAM);
-  text("return to first-time setup.",28,121,1,CREAM);
-  button(28,144,264,32,"DELETE SAVED WI-FI",BURG);
+  text("DISPLAY",28,78,1,GOLD);
+  button(28,89,264,27,"DISPLAY CALIBRATION",NAVY);
+  text("NETWORK",28,135,1,GOLD);
+  text("Remove the saved Wi-Fi network and",28,149,1,CREAM);
+  text("return to first-time setup.",28,162,1,CREAM);
+  button(28,181,264,28,"DELETE SAVED WI-FI",BURG);
+}
+void drawDisplayCalibration(){
+  applyDisplayProfile(previewDisplayProfile);
+  frame("DISPLAY CALIBRATION");
+  center(String("PROFILE ")+String(previewDisplayProfile+1)+" OF 8",50,1,GOLD);
+  center(panelProfiles[previewDisplayProfile].name,63,1,CREAM);
+  tft.fillRect(31,81,56,35,0xF800); tft.fillRect(96,81,56,35,0x07E0); tft.fillRect(161,81,56,35,0x001F); tft.fillRect(226,81,56,35,0xFFFF);
+  overlayAt("RED",59,121,1,CREAM); overlayAt("GREEN",124,121,1,CREAM); overlayAt("BLUE",189,121,1,CREAM); overlayAt("WHITE",254,121,1,CREAM);
+  center("Choose rich colors and a deep navy background.",138,1,CREAM);
+  center("Avoid a washed-out blue-white image.",150,1,CREAM);
+  button(28,174,120,28,"TRY NEXT",NAVY);
+  button(172,174,120,28,"SAVE THIS",BURG);
 }
 void drawConfirmNetworkDelete(){
   frame("DELETE SAVED WI-FI?");
@@ -685,9 +725,14 @@ void tap(int x,int y){
  if(screen==BOOT){ internetReady=internetAvailable(savedWifiSsid.length()?3500:0); if(internetReady) requestClockSync(); screen=internetReady?HOME:JOURNEY; uiRevision++; return; }
  if(screen==JOURNEY){ if(x>=65 && x<255 && y>=145 && y<175)screen=HOME; else if(x>=65 && x<255 && y>=185 && y<215){ startConfigPortal(); screen=ONLINE_SETUP; } uiRevision++; return; }
  if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
+ if(screen==DISPLAY_CALIBRATION && x>=0 && x<65 && y>=0 && y<50){ previewDisplayProfile=displayProfile; applyDisplayProfile(displayProfile); screen=SETTINGS; uiRevision++; return; }
  if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:(screen==CONFIRM_NETWORK_DELETE?SETTINGS:HOME); uiRevision++; return; }
  if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:ELEMENTAL_RITUAL; }
- else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=144&&y<176)screen=CONFIRM_NETWORK_DELETE; }
+ else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=89&&y<116){ previewDisplayProfile=displayProfile; screen=DISPLAY_CALIBRATION; } else if(x>=28&&x<292&&y>=181&&y<209)screen=CONFIRM_NETWORK_DELETE; }
+ else if(screen==DISPLAY_CALIBRATION){
+   if(x>=28&&x<148&&y>=174&&y<202) previewDisplayProfile=(previewDisplayProfile+1)%8;
+   else if(x>=172&&x<292&&y>=174&&y<202){ displayProfile=previewDisplayProfile; prefs.putUChar("displayProfile",displayProfile); screen=SETTINGS; }
+ }
  else if(screen==CONFIRM_NETWORK_DELETE){
    if(x>=28&&x<146&&y>=165&&y<195)screen=SETTINGS;
    else if(x>=174&&x<292&&y>=165&&y<195){
@@ -720,7 +765,6 @@ void setup(){
   tft.init();
   Serial.println("ASTRAL: tft init complete");
   tft.setRotation(3);
-  tft.invertDisplay(true);
   Serial.printf("ASTRAL: dimensions %d x %d\n", tft.width(), tft.height());
   Serial.println("ASTRAL: rotation complete");
   sdSPI.begin(18, 19, 23, 5);
@@ -738,6 +782,9 @@ void setup(){
   Serial.println("ASTRAL: touch init complete");
   prefs.begin("cabinet",false);
   guestName=prefs.getString("name",DEFAULT_NAME);
+  displayProfile=prefs.getUChar("displayProfile",0)%8;
+  previewDisplayProfile=displayProfile;
+  applyDisplayProfile(displayProfile);
   Serial.println("ASTRAL: preferences complete");
   netPrefs.begin("network",false);
   connectSavedWifi();
@@ -768,6 +815,7 @@ void loop(){
     else if(screen==ONLINE_SETUP)drawOnlineSetup();
     else if(screen==HOME)drawHome();
     else if(screen==SETTINGS)drawSettings();
+    else if(screen==DISPLAY_CALIBRATION)drawDisplayCalibration();
     else if(screen==CONFIRM_NETWORK_DELETE)drawConfirmNetworkDelete();
     else if(screen==ELEMENTAL_RITUAL)drawElementalRitual();
     else if(screen==ZODIAC)drawZodiac();

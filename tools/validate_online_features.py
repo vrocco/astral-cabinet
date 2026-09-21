@@ -14,7 +14,7 @@ required_source = (
     'configTzTime(savedTimezone.c_str(),"pool.ntp.org","time.nist.gov")',
     'netPrefs.putString("timezone",savedTimezone)',
     'netPrefs.putFloat("latitude",skyLatitude)',
-    'enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER }',
+    'enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, DISPLAY_CALIBRATION, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER }',
     'COSMIC_FEED_URL="https://raw.githubusercontent.com/vrocco/astral-cabinet/main/data/cosmic.txt"',
     'readSdText("/astral/setup.html")',
     'refreshCosmicCache()',
@@ -28,6 +28,9 @@ required_source = (
     'WiFi.disconnect(true,true)',
     'netPrefs.clear()',
     'ESP.restart()',
+    'applyDisplayProfile(displayProfile)',
+    'DISPLAY CALIBRATION',
+    'prefs.putUChar("displayProfile",displayProfile)',
 )
 for item in required_source:
     assert item in source, item
@@ -41,4 +44,4 @@ assert feed[2].startswith("Moon: "), feed[2]
 assert feed[3].startswith("Next full: "), feed[3]
 assert feed[4].startswith("Next new: "), feed[4]
 assert "factory,  app,  factory, 0x10000,  0x3F0000," in partitions
-print("Online feature wiring checks passed: 29")
+print("Online feature wiring checks passed: 32")
