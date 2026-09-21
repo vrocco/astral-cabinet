@@ -501,7 +501,8 @@ void drawElementalRitual(){
   overlayAt(String(sections[ritualStep])+"  "+String(ritualStep+1)+" OF 3",230,82,1,GOLD);
   textWrap(contents[ritualStep],174,98,1,CREAM,112,6);
   overlayAt(ritualStep<2?"TOUCH TEXT TO CONTINUE":"TOUCH TEXT TO BEGIN AGAIN",230,190,1,CREAM);
-  overlayAt("TOUCH EMBLEM FOR A NEW RITUAL",74,214,1,CREAM);
+  overlayAt("TOUCH EMBLEM FOR",74,204,1,CREAM);
+  overlayAt("A NEW RITUAL",74,216,1,CREAM);
 }
 void drawSettings(){
   frame("SETTINGS");
