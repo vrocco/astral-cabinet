@@ -6,6 +6,7 @@
 #include <time.h>
 #include <SD.h>
 #include <TJpg_Decoder.h>
+#include <ArduinoJson.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <HTTPClient.h>
@@ -490,12 +491,38 @@ int selectedElement(){
   if(element=="Air") return 2;
   return 3;
 }
+const char* ritualKeys[]={"fire","earth","air","water"};
+String sdRitualIntention, sdRitualPractice, sdRitualRelease;
+int lastSdRitual[4]={-1,-1,-1,-1};
+bool sdRitualLoaded=false;
+bool selectElementalRitual(){
+  ritualStep=0;
+  int element=selectedElement();
+  if(!sdArtReady || !SD.exists("/astral/rituals.json")){ sdRitualLoaded=false; ritualVariant=(ritualVariant+1)%3; return false; }
+  File file=SD.open("/astral/rituals.json",FILE_READ);
+  if(!file){ sdRitualLoaded=false; ritualVariant=(ritualVariant+1)%3; return false; }
+  JsonDocument document;
+  DeserializationError error=deserializeJson(document,file);
+  file.close();
+  JsonArray rituals=document[ritualKeys[element]].as<JsonArray>();
+  if(error || rituals.isNull() || !rituals.size()){ sdRitualLoaded=false; ritualVariant=(ritualVariant+1)%3; return false; }
+  int choice=random(rituals.size());
+  if(rituals.size()>1 && choice==lastSdRitual[element]) choice=(choice+1+random(rituals.size()-1))%rituals.size();
+  JsonObject ritual=rituals[choice];
+  const char* intention=ritual["intention"] | "";
+  const char* practice=ritual["practice"] | "";
+  const char* release=ritual["release"] | "";
+  if(!intention[0] || !practice[0] || !release[0]){ sdRitualLoaded=false; ritualVariant=(ritualVariant+1)%3; return false; }
+  sdRitualIntention=intention; sdRitualPractice=practice; sdRitualRelease=release;
+  lastSdRitual[element]=choice; sdRitualLoaded=true;
+  return true;
+}
 void drawElementalRitual(){
   if(!drawSdArt("/astral/elemental_ritual.jpg",0,0)) frame("ELEMENTAL RITUAL");
   button(14,16,32,15,"BACK",NAVY);
   const ElementalRitual& ritual=elementalRituals[selectedElement()][ritualVariant%3];
   const char* sections[]={"INTENTION","PRACTICE","RELEASE"};
-  const char* contents[]={ritual.intention,ritual.practice,ritual.release};
+  const char* contents[]={sdRitualLoaded?sdRitualIntention.c_str():ritual.intention,sdRitualLoaded?sdRitualPractice.c_str():ritual.practice,sdRitualLoaded?sdRitualRelease.c_str():ritual.release};
   overlayAt("ELEMENTAL RITUAL",230,47,1,CREAM);
   overlayAt(String(signs[signIndex].name)+"  ·  "+signs[signIndex].element,230,63,1,GOLD);
   overlayAt(String(sections[ritualStep])+"  "+String(ritualStep+1)+" OF 3",230,82,1,GOLD);
@@ -732,7 +759,7 @@ void tap(int x,int y){
  if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen==DISPLAY_CALIBRATION && x>=0 && x<65 && y>=0 && y<50){ previewDisplayProfile=displayProfile; applyDisplayProfile(displayProfile); screen=SETTINGS; uiRevision++; return; }
  if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:(screen==CONFIRM_NETWORK_DELETE?SETTINGS:HOME); uiRevision++; return; }
- if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212){ if(internetReady)screen=LIVE_ASTRAL; else { ritualStep=0; screen=ELEMENTAL_RITUAL; } } }
+ if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212){ if(internetReady)screen=LIVE_ASTRAL; else { selectElementalRitual(); screen=ELEMENTAL_RITUAL; } } }
  else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=89&&y<116){ previewDisplayProfile=displayProfile; screen=DISPLAY_CALIBRATION; } else if(x>=28&&x<292&&y>=181&&y<209)screen=CONFIRM_NETWORK_DELETE; }
  else if(screen==DISPLAY_CALIBRATION){
    if(x>=28&&x<148&&y>=174&&y<202) previewDisplayProfile=(previewDisplayProfile+1)%8;
@@ -749,7 +776,7 @@ void tap(int x,int y){
    }
  }
  else if(screen==ELEMENTAL_RITUAL){
-   if(x<145&&y>=45&&y<230){ ritualVariant=(ritualVariant+1)%3; ritualStep=0; }
+   if(x<145&&y>=45&&y<230) selectElementalRitual();
    else if(x>=145&&x<310&&y>=55&&y<210) ritualStep=(ritualStep+1)%3;
  }
  else if(screen==LIVE_ASTRAL){ if(y>=130&&y<205&&x<105){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=130&&y<205&&x<215)screen=RITUAL_CALENDAR; else if(y>=130&&y<205){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }

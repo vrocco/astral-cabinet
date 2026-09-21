@@ -41,6 +41,7 @@ Use a FAT32-formatted microSD card. Copy the repository's
 /astral/ritual_calendar.jpg
 /astral/cosmic_weather.jpg
 /astral/elemental_ritual.jpg
+/astral/rituals.json
 /astral/00.jpg
 /astral/00_s.jpg
 /astral/00_r.jpg
@@ -187,9 +188,17 @@ The main menu always keeps **Zodiac**. When offline, the fourth doorway is
 **Elemental Ritual**: a locally generated reflection for the selected sign's
 Fire, Earth, Air, or Water element. It presents Intention, Practice, and
 Release one at a time; tap the text panel to advance, or the elemental emblem
-to generate a new ritual. When online, that doorway becomes **Live Astral** and
-opens three connected experiences illustrated with their own Art Nouveau
-backgrounds:
+to generate a new ritual.
+
+The offline ritual library lives at `/astral/rituals.json` on the SD card. It
+ships with 48 original ritual sets—12 for each element—and is selected randomly
+while avoiding an immediate repeat for the same element. The firmware has a
+small built-in three-set-per-element fallback for a missing or invalid SD card.
+To add rituals later, extend the corresponding `fire`, `earth`, `air`, or
+`water` list using the same `intention`, `practice`, and `release` fields.
+
+When online, that doorway becomes **Live Astral** and opens three connected
+experiences illustrated with their own Art Nouveau backgrounds:
 
 - **Sky Now** shows NTP-synchronized local time, current lunar phase and
   illumination, plus the next new and full moon.
