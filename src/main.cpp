@@ -81,7 +81,7 @@ const Card cards[] = {
 };
 
 enum Screen { BOOT, JOURNEY, ONLINE_SETUP, HOME, SETTINGS, DISPLAY_CALIBRATION, CONFIRM_NETWORK_DELETE, ZODIAC, MENU, DAILY, SPREAD, CARD, CABINET, ELEMENTAL_RITUAL, LIVE_ASTRAL, SKY_NOW, RITUAL_CALENDAR, COSMIC_WEATHER };
-Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0, ritualVariant=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
+Screen screen=BOOT; int signIndex=0, spreadMode=0, reveal=0, detailCard=0, ritualVariant=0, ritualStep=0; int drawn[3]={0,0,0}; bool reversed[3]={false,false,false}; String guestName;
 uint32_t uiRevision=0;
 void textWrap(const String&s,int x,int y,int size,uint16_t color,int width,int maxLines=0);
 String readSdText(const char* path, size_t limit=8192);
@@ -166,7 +166,7 @@ String timezoneOptions(){
 
 String setupPortalPage(){
   String page=readSdText("/astral/setup.html");
-  if(!page.length()) page=F("<!doctype html><html><body><h1>Astral Cabinet</h1><form method=\"post\" action=\"/save\"><label>Network <select name=\"ssid\">{{NETWORK_OPTIONS}}</select></label><label>Manual network <input name=\"manual\"></label><label>Password <input name=\"password\" type=\"password\"></label><button>Save and restart</button></form></body></html>");
+  if(!page.length()) page=F("<!doctype html><html><body><h1>Maxine's Astral Cabinet</h1><form method=\"post\" action=\"/save\"><label>Network <select name=\"ssid\">{{NETWORK_OPTIONS}}</select></label><label>Manual network <input name=\"manual\"></label><label>Password <input name=\"password\" type=\"password\"></label><button>Save and restart</button></form></body></html>");
   page.replace("{{NETWORK_OPTIONS}}",nearbyNetworkOptions());
   page.replace("{{TIMEZONE_OPTIONS}}",timezoneOptions());
   page.replace("{{ZIPCODE}}",htmlEscape(savedZipcode));
@@ -204,7 +204,7 @@ void handleSaveNetwork(){
   netPrefs.putBool("locationSet",skyLocationSet);
   if(skyLocationSet){ netPrefs.putFloat("latitude",skyLatitude); netPrefs.putFloat("longitude",skyLongitude); }
   else { netPrefs.remove("latitude"); netPrefs.remove("longitude"); }
-  webServer.send(200,"text/html",F("<html><body><h2>Saved.</h2><p>The Astral Cabinet is restarting to join the selected network.</p></body></html>"));
+  webServer.send(200,"text/html",F("<html><body><h2>Saved.</h2><p>Maxine's Astral Cabinet is restarting to join the selected network.</p></body></html>"));
   delay(750);
   ESP.restart();
 }
@@ -373,7 +373,7 @@ void frame(const String&title){
 }
 void button(int x,int y,int w,int h,const String&label,uint16_t fill=BURG){ tft.fillRoundRect(x,y,w,h,6,fill); tft.drawRoundRect(x,y,w,h,6,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); int tx=x+(w-tft.textWidth(label))/2; tft.setCursor(tx,y+(h-8)/2); tft.print(label); }
 void doorPlaque(int x,int y,int w,const String&label,uint16_t fill=NAVY){ tft.fillRoundRect(x,y,w,15,3,fill); tft.drawRoundRect(x,y,w,15,3,GOLD); tft.setTextWrap(false,false); tft.setTextColor(CREAM,fill); tft.setTextSize(1); tft.setCursor(x+(w-tft.textWidth(label))/2,y+4); tft.print(label); }
-void footer(){ text("THE ASTRAL CABINET",92,222,1,MUTED); }
+void footer(){ center("MAXINE'S ASTRAL CABINET",222,1,MUTED); }
 void overlayCenter(const String&s,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c); tft.setTextSize(size); tft.setCursor((W-tft.textWidth(s))/2,y); tft.print(s); }
 void overlayAt(const String&s,int cx,int y,int size=1,uint16_t c=CREAM){ tft.setTextWrap(false,false); tft.setTextColor(c); tft.setTextSize(size); tft.setCursor(cx-tft.textWidth(s)/2,y); tft.print(s); }
 struct PanelProfile { const char* name; bool standardGamma; bool rgbOrder; bool inverted; };
@@ -413,6 +413,7 @@ void drawBoot(){
     center("THE",62,2,GOLD); center("ASTRAL",88,4,CREAM); center("CABINET",126,3,GOLD);
     center("a small instrument for reflection",174,1,MUTED);
   }
+  doorPlaque(80,9,160,"MAXINE'S ASTRAL CABINET",NAVY);
   tft.setTextWrap(false,false); tft.setTextColor(CREAM); tft.setTextSize(1);
   const String prompt="TOUCH TO ENTER";
   tft.setCursor((W-tft.textWidth(prompt))/2,222); tft.print(prompt);
@@ -448,14 +449,15 @@ void drawOnlineSetup(){
 void drawHome(){
   const String fourthDoor=internetReady ? "LIVE ASTRAL" : "ELEMENTAL RITUAL";
   if(!drawSdArt("/astral/doorways.jpg",0,0)){
-    frame("THE ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,fourthDoor); center("Touch a doorway to begin",202,1,MUTED);
+    frame("MAXINE'S ASTRAL CABINET"); button(14,16,32,15,"BACK",NAVY); center("What would you like to consult?",72,1,CREAM); button(25,92,130,38,"DAILY OMEN"); button(165,92,130,38,"TAROT READING"); button(25,143,130,38,"ZODIAC"); button(165,143,130,38,fourthDoor); center("Touch a doorway to begin",202,1,MUTED);
     drawSettingsGear();
     return;
   }
   button(14,16,32,15,"BACK",NAVY);
   tft.setTextWrap(false,false); tft.setTextColor(CREAM); tft.setTextSize(1);
+  doorPlaque(80,15,160,"MAXINE'S ASTRAL CABINET",NAVY);
   const String prompt="CHOOSE A DOORWAY";
-  tft.setCursor((W-tft.textWidth(prompt))/2,38); tft.print(prompt);
+  tft.setCursor((W-tft.textWidth(prompt))/2,34); tft.print(prompt);
   doorPlaque(30,105,100,"DAILY OMEN");
   doorPlaque(190,105,100,"TAROT READING",BURG);
   doorPlaque(35,188,90,"ZODIAC");
@@ -492,12 +494,14 @@ void drawElementalRitual(){
   if(!drawSdArt("/astral/elemental_ritual.jpg",0,0)) frame("ELEMENTAL RITUAL");
   button(14,16,32,15,"BACK",NAVY);
   const ElementalRitual& ritual=elementalRituals[selectedElement()][ritualVariant%3];
+  const char* sections[]={"INTENTION","PRACTICE","RELEASE"};
+  const char* contents[]={ritual.intention,ritual.practice,ritual.release};
   overlayAt("ELEMENTAL RITUAL",230,47,1,CREAM);
   overlayAt(String(signs[signIndex].name)+"  ·  "+signs[signIndex].element,230,63,1,GOLD);
-  text("INTENTION",174,80,1,GOLD); textWrap(ritual.intention,174,91,1,CREAM,112,2);
-  text("PRACTICE",174,120,1,GOLD); textWrap(ritual.practice,174,131,1,CREAM,112,2);
-  text("RELEASE",174,160,1,GOLD); textWrap(ritual.release,174,171,1,CREAM,112,2);
-  overlayAt("TOUCH THE PANEL TO RENEW",230,208,1,CREAM);
+  overlayAt(String(sections[ritualStep])+"  "+String(ritualStep+1)+" OF 3",230,82,1,GOLD);
+  textWrap(contents[ritualStep],174,98,1,CREAM,112,6);
+  overlayAt(ritualStep<2?"TOUCH TEXT TO CONTINUE":"TOUCH TEXT TO BEGIN AGAIN",230,190,1,CREAM);
+  overlayAt("TOUCH EMBLEM FOR A NEW RITUAL",74,214,1,CREAM);
 }
 void drawSettings(){
   frame("SETTINGS");
@@ -727,7 +731,7 @@ void tap(int x,int y){
  if(screen==ONLINE_SETUP){ if(x>=0 && x<65 && y>=0 && y<50){ stopConfigPortal(); screen=JOURNEY; } uiRevision++; return; }
  if(screen==DISPLAY_CALIBRATION && x>=0 && x<65 && y>=0 && y<50){ previewDisplayProfile=displayProfile; applyDisplayProfile(displayProfile); screen=SETTINGS; uiRevision++; return; }
  if(screen!=HOME && x>=0 && x<65 && y>=0 && y<50){ screen=(screen==SKY_NOW||screen==RITUAL_CALENDAR||screen==COSMIC_WEATHER)?LIVE_ASTRAL:(screen==CONFIRM_NETWORK_DELETE?SETTINGS:HOME); uiRevision++; return; }
- if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212)screen=internetReady?LIVE_ASTRAL:ELEMENTAL_RITUAL; }
+ if(screen==HOME){ if(x>=0 && x<65 && y>=0 && y<50)screen=JOURNEY; else if(x>=214&&x<263&&y>=213&&y<240)screen=SETTINGS; else if(x>=10&&x<160&&y>=55&&y<130)newReading(false); else if(x>=160&&x<310&&y>=55&&y<130)newReading(true); else if(x>=10&&x<160&&y>=133&&y<212)screen=ZODIAC; else if(x>=160&&x<310&&y>=133&&y<212){ if(internetReady)screen=LIVE_ASTRAL; else { ritualStep=0; screen=ELEMENTAL_RITUAL; } } }
  else if(screen==SETTINGS){ if(x>=28&&x<292&&y>=89&&y<116){ previewDisplayProfile=displayProfile; screen=DISPLAY_CALIBRATION; } else if(x>=28&&x<292&&y>=181&&y<209)screen=CONFIRM_NETWORK_DELETE; }
  else if(screen==DISPLAY_CALIBRATION){
    if(x>=28&&x<148&&y>=174&&y<202) previewDisplayProfile=(previewDisplayProfile+1)%8;
@@ -743,7 +747,10 @@ void tap(int x,int y){
      delay(200); ESP.restart(); return;
    }
  }
- else if(screen==ELEMENTAL_RITUAL){ if(x>=145&&x<310&&y>=55&&y<220) ritualVariant=(ritualVariant+1)%3; }
+ else if(screen==ELEMENTAL_RITUAL){
+   if(x<145&&y>=45&&y<230){ ritualVariant=(ritualVariant+1)%3; ritualStep=0; }
+   else if(x>=145&&x<310&&y>=55&&y<210) ritualStep=(ritualStep+1)%3;
+ }
  else if(screen==LIVE_ASTRAL){ if(y>=130&&y<205&&x<105){ refreshCosmicCache(); screen=SKY_NOW; } else if(y>=130&&y<205&&x<215)screen=RITUAL_CALENDAR; else if(y>=130&&y<205){ refreshCosmicCache(); screen=COSMIC_WEATHER; } }
  else if(screen==ZODIAC){ if(y>=45&&y<225){ int col=(x-10)/80,row=(y-45)/60; if(col>=0&&col<4&&row>=0&&row<3&&x>=10+col*80&&x<70+col*80){ signIndex=row*4+col; screen=MENU; } } }
  else if(screen==MENU){ if(x>=10&&x<112&&y>=130&&y<180)newReading(false); else if(x>=208&&x<310&&y>=130&&y<180)newReading(true); else if(x>=110&&x<210&&y>=160&&y<200)screen=ZODIAC; }

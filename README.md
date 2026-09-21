@@ -1,4 +1,4 @@
-# The Astral Cabinet
+# Maxine's Astral Cabinet
 
 A portable, offline tarot and zodiac fortune-teller for the ESP32-2432S028 CYD (320x240 ILI9341 touchscreen).
 
@@ -185,8 +185,9 @@ prior credentials. Perform setup away from untrusted nearby users.
 
 The main menu always keeps **Zodiac**. When offline, the fourth doorway is
 **Elemental Ritual**: a locally generated reflection for the selected sign's
-Fire, Earth, Air, or Water element. Touch its text panel to rotate among three
-offline ritual prompts. When online, that doorway becomes **Live Astral** and
+Fire, Earth, Air, or Water element. It presents Intention, Practice, and
+Release one at a time; tap the text panel to advance, or the elemental emblem
+to generate a new ritual. When online, that doorway becomes **Live Astral** and
 opens three connected experiences illustrated with their own Art Nouveau
 backgrounds:
 
@@ -209,7 +210,7 @@ with a stable hostname and its pinned CA certificate.
 
 ## Controls
 
-At startup, tap the illustrated Astral Cabinet entry screen, then choose a journey.
+At startup, tap the illustrated Maxine's Astral Cabinet entry screen, then choose a journey.
 **Offline** opens a four-portal reading menu. **Online** opens the Wi-Fi setup
 screen and starts the local configuration portal described above. The main menu
 keeps Zodiac and uses its fourth doorway for Live Astral.
