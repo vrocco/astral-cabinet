@@ -1,6 +1,6 @@
 ASTRAL COSMIC WEATHER
-Updated 2026-09-23 UTC
-Moon: waxing gibbous 90%
+Updated 2026-09-24 UTC
+Moon: full moon 95%
 Next full: 1790441337
 Next new: 1791647401
 Mercury: direct in Libra
