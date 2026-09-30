@@ -1,9 +1,10 @@
 ASTRAL COSMIC WEATHER
-Updated 2026-09-29 UTC
-Moon: waning gibbous 89%
+Updated 2026-09-30 UTC
+Moon: waning gibbous 81%
 Next full: 1792987904
 Next new: 1791647401
 Mercury: direct in Libra
 Venus: direct in Scorpio
 Mars: direct in Leo
 Jupiter: direct in Leo
+Aspect: Mercury square Mars
