@@ -1,10 +1,10 @@
 ASTRAL COSMIC WEATHER
-Updated 2026-10-02 UTC
-Moon: last quarter 61%
+Updated 2026-10-03 UTC
+Moon: last quarter 50%
 Next full: 1792987904
 Next new: 1791647401
 Mercury: direct in Scorpio
-Venus: direct in Scorpio
+Venus: retrograde in Scorpio
 Mars: direct in Leo
 Jupiter: direct in Leo
 Aspect: Mercury square Mars
