@@ -1,10 +1,9 @@
 ASTRAL COSMIC WEATHER
-Updated 2026-10-07 UTC
-Moon: waning crescent 10%
+Updated 2026-10-08 UTC
+Moon: waning crescent 5%
 Next full: 1792987904
 Next new: 1791647401
 Mercury: direct in Scorpio
 Venus: retrograde in Scorpio
 Mars: direct in Leo
 Jupiter: direct in Leo
-Aspect: Mercury conjunct Venus
