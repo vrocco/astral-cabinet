@@ -1,9 +1,9 @@
 ASTRAL COSMIC WEATHER
-Updated 2026-10-23 UTC
-Moon: waxing gibbous 92%
+Updated 2026-10-24 UTC
+Moon: full moon 96%
 Next full: 1792987904
 Next new: 1794207723
-Mercury: direct in Scorpio
+Mercury: retrograde in Scorpio
 Venus: retrograde in Scorpio
 Mars: direct in Leo
 Jupiter: direct in Leo
